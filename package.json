@@ -1,0 +1,33 @@
+{
+  "name": "personal-os",
+  "version": "1.0.0",
+  "description": "Local-first Hks Personal OS skill and deterministic CLI for safe AI collaboration.",
+  "type": "module",
+  "bin": {
+    "pos": "./scripts/pos.mjs",
+    "personal-os": "./scripts/install.mjs"
+  },
+  "files": [
+    "README.zh-CN.md",
+    "CHANGELOG.md",
+    "AGENT_INSTALL.md",
+    "install.sh",
+    "SKILL.md",
+    "agents",
+    "assets",
+    "docs",
+    "references",
+    "scripts",
+    ".claude-plugin",
+    ".codex-plugin"
+  ],
+  "scripts": {
+    "check": "node scripts/validate.mjs --structure && node --check scripts/pos.mjs",
+    "test": "node --test --test-concurrency=1 tests/*.test.mjs",
+    "validate": "npm run check && npm test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}

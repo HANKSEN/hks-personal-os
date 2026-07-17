@@ -1,0 +1,4 @@
+interface:
+  display_name: "Personal OS"
+  short_description: "Route personal work safely into reusable local context"
+  default_prompt: "Use $personal-os to route this request into the right local context and prepare a safe, reviewable change."

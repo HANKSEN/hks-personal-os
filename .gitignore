@@ -1,0 +1,23 @@
+node_modules/
+.DS_Store
+coverage/
+output/
+runs/
+.runs/
+*.log
+
+# Internal product design and private working material
+specs/
+internal/
+private/
+personal-data/
+backups/
+*.private.md
+
+# Local credentials and signing material
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.p12

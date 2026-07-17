@@ -1,0 +1,39 @@
+{
+  "schema": "pos.policy.v1",
+  "mode": "collaborative",
+  "denyRead": [
+    ".secrets/**",
+    "Private/**"
+  ],
+  "allowWrite": [
+    "POS.md",
+    "00_Inbox/**",
+    "10_Projects/**",
+    "20_Areas/**",
+    "30_Resources/**",
+    "90_Archive/**",
+    "99_AI/**"
+  ],
+  "autoWrite": [
+    "99_AI/runs/**"
+  ],
+  "protected": [
+    "POS.md",
+    "10_Projects/*/CONTEXT.md",
+    "20_Areas/*/CONTEXT.md"
+  ],
+  "ignoreIndex": [
+    ".git/**",
+    ".pos/**",
+    "99_AI/agents/**",
+    "99_AI/proposed/**",
+    "99_AI/runs/**",
+    "99_AI/trash/**",
+    "node_modules/**"
+  ],
+  "maxOperations": 25,
+  "maxContextFiles": 8,
+  "maxContextChars": 48000,
+  "staleInboxDays": 14,
+  "denySymlinks": true
+}
