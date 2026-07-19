@@ -1,0 +1,309 @@
+{
+  "cards" : [
+    {
+      "dot" : "cyan",
+      "items" : [
+        "AI 只在 Run 中直接寫入",
+        "正式目錄不接受靜默覆蓋",
+        "刪除、覆蓋和越界路徑預設拒絕"
+      ],
+      "title" : "預設安全"
+    },
+    {
+      "dot" : "rose",
+      "items" : [
+        "Changeset 說明為什麼改、改到哪裡",
+        "Diff 在確認前展示真實影響",
+        "核心上下文變更需要顯式批准"
+      ],
+      "title" : "人能看懂"
+    },
+    {
+      "dot" : "emerald",
+      "items" : [
+        "Apply 前後都記錄內容哈希",
+        "外部檔案變化會觸發衝突保護",
+        "保留審計記錄與安全撤銷入口"
+      ],
+      "title" : "出錯可恢復"
+    }
+  ],
+  "diagram_type" : "workflow",
+  "edges" : [
+    {
+      "from" : "draft",
+      "to" : "changeset",
+      "variant" : "default"
+    },
+    {
+      "from" : "changeset",
+      "fromSide" : "bottom",
+      "label" : "提交提案",
+      "labelAt" : [
+        260,
+        170
+      ],
+      "route" : "drop",
+      "to" : "validate",
+      "toSide" : "top",
+      "variant" : "emphasis"
+    },
+    {
+      "from" : "validate",
+      "to" : "preview",
+      "variant" : "default"
+    },
+    {
+      "from" : "preview",
+      "fromSide" : "bottom",
+      "label" : "顯示影響範圍",
+      "labelSegment" : 1,
+      "route" : "drop",
+      "to" : "approval",
+      "toSide" : "top",
+      "variant" : "security"
+    },
+    {
+      "from" : "approval",
+      "fromSide" : "bottom",
+      "label" : "確認後執行",
+      "labelAt" : [
+        563,
+        418
+      ],
+      "route" : "drop",
+      "to" : "apply",
+      "toSide" : "top",
+      "variant" : "emphasis"
+    },
+    {
+      "from" : "apply",
+      "fromSide" : "bottom",
+      "label" : "留痕",
+      "route" : "drop",
+      "to" : "audit",
+      "toSide" : "top",
+      "variant" : "dashed"
+    },
+    {
+      "from" : "approval",
+      "fromSide" : "bottom",
+      "label" : "拒絕或修改",
+      "labelSegment" : 1,
+      "role" : "error",
+      "route" : "drop",
+      "to" : "revise",
+      "toSide" : "top",
+      "variant" : "security"
+    },
+    {
+      "from" : "revise",
+      "fromSide" : "left",
+      "label" : "回到 Run，不污染主目錄",
+      "labelAt" : [
+        150,
+        425
+      ],
+      "role" : "return",
+      "route" : "return-left",
+      "to" : "draft",
+      "toSide" : "left",
+      "variant" : "security"
+    },
+    {
+      "from" : "audit",
+      "fromSide" : "bottom",
+      "label" : "需要撤銷時",
+      "labelSegment" : 1,
+      "route" : "drop",
+      "to" : "rollback",
+      "toSide" : "top",
+      "variant" : "dashed"
+    }
+  ],
+  "groups" : [
+    {
+      "fromCol" : 0,
+      "id" : "proposal",
+      "label" : "AI 可自由修改的臨時空間",
+      "lane" : "run",
+      "toCol" : 1,
+      "variant" : "dashed"
+    },
+    {
+      "fromCol" : 2,
+      "id" : "deterministic",
+      "label" : "機器可重復驗證",
+      "lane" : "runtime",
+      "toCol" : 3,
+      "variant" : "emphasis"
+    },
+    {
+      "fromCol" : 4,
+      "id" : "approval_gate",
+      "label" : "風險顯性化",
+      "lane" : "human",
+      "toCol" : 4,
+      "variant" : "security"
+    },
+    {
+      "fromCol" : 4,
+      "id" : "exception_path",
+      "label" : "任何時候都能停下或回退",
+      "lane" : "exception",
+      "toCol" : 5,
+      "variant" : "security"
+    }
+  ],
+  "lanes" : [
+    {
+      "id" : "run",
+      "label" : "Agent Run"
+    },
+    {
+      "id" : "runtime",
+      "label" : "確定性運行時"
+    },
+    {
+      "id" : "human",
+      "label" : "人工確認"
+    },
+    {
+      "id" : "commit",
+      "label" : "正式寫入"
+    },
+    {
+      "id" : "audit",
+      "label" : "審計記錄"
+    },
+    {
+      "id" : "exception",
+      "label" : "退回與撤銷",
+      "variant" : "exception"
+    }
+  ],
+  "mainPath" : [
+    "draft",
+    "changeset",
+    "validate",
+    "preview",
+    "approval",
+    "apply",
+    "audit"
+  ],
+  "meta" : {
+    "output" : "assets/diagrams/candidates/04-safe-write.html",
+    "subtitle" : "所有修改先成為可審閱提案，再由確定性運行時執行並保留撤銷能力",
+    "title" : "讓 AI 大膽協作，讓正式寫入保持克制",
+    "viewBox" : [
+      720,
+      900
+    ]
+  },
+  "nodes" : [
+    {
+      "col" : 0,
+      "id" : "draft",
+      "label" : "工作草稿",
+      "lane" : "run",
+      "sublabel" : "只在本次 Run 內生成",
+      "type" : "messagebus"
+    },
+    {
+      "col" : 1,
+      "id" : "changeset",
+      "label" : "CHANGESET.json",
+      "lane" : "run",
+      "sublabel" : "動作 · 來源 · 目標 · 理由",
+      "tag" : "proposal",
+      "type" : "cloud"
+    },
+    {
+      "col" : 2,
+      "id" : "validate",
+      "label" : "結構校驗",
+      "lane" : "runtime",
+      "sublabel" : "路徑邊界 · 禁止操作 · 衝突",
+      "type" : "messagebus"
+    },
+    {
+      "col" : 3,
+      "id" : "preview",
+      "label" : "Diff 預覽",
+      "lane" : "runtime",
+      "sublabel" : "先看會發生什麼",
+      "type" : "frontend"
+    },
+    {
+      "col" : 4,
+      "id" : "approval",
+      "label" : "人工確認",
+      "lane" : "human",
+      "sublabel" : "逐項接受、修改或拒絕",
+      "tag" : "final call",
+      "type" : "security"
+    },
+    {
+      "col" : 5,
+      "id" : "apply",
+      "label" : "Apply",
+      "lane" : "commit",
+      "sublabel" : "確定性寫入正式資產",
+      "type" : "backend"
+    },
+    {
+      "col" : 5,
+      "id" : "audit",
+      "label" : "Audit + Undo",
+      "lane" : "audit",
+      "sublabel" : "記錄前後哈希與撤銷資訊",
+      "type" : "database"
+    },
+    {
+      "col" : 4,
+      "id" : "revise",
+      "label" : "退回修改",
+      "lane" : "exception",
+      "sublabel" : "不觸碰正式資產",
+      "type" : "security"
+    },
+    {
+      "col" : 5,
+      "id" : "rollback",
+      "label" : "衝突 / 撤銷",
+      "lane" : "exception",
+      "sublabel" : "檢測變化後安全停下",
+      "type" : "messagebus"
+    }
+  ],
+  "phases" : [
+    {
+      "fromCol" : 0,
+      "id" : "draft",
+      "label" : "先形成草稿與目標路徑",
+      "toCol" : 1
+    },
+    {
+      "fromCol" : 2,
+      "id" : "verify",
+      "label" : "先驗證，再預覽",
+      "toCol" : 3,
+      "variant" : "emphasis"
+    },
+    {
+      "fromCol" : 4,
+      "id" : "decide",
+      "label" : "人作最終決定",
+      "toCol" : 4,
+      "variant" : "security"
+    },
+    {
+      "fromCol" : 5,
+      "id" : "record",
+      "label" : "寫入與留痕",
+      "toCol" : 5,
+      "variant" : "dashed"
+    }
+  ],
+  "schema_version" : 1
+}

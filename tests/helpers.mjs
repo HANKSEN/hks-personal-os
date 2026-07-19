@@ -26,6 +26,7 @@ export async function withSandbox(callback, options = {}) {
     HOME: process.env.HOME,
     XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME,
     XDG_CACHE_HOME: process.env.XDG_CACHE_HOME,
+    PERSONAL_OS_HOST: process.env.PERSONAL_OS_HOST,
   };
   Object.assign(process.env, {
     POS_TEST_MODE: "1",
@@ -48,6 +49,7 @@ export async function withSandbox(callback, options = {}) {
     delete process.env.POS_TEST_INTERFERE_BEFORE_OPERATION;
     delete process.env.POS_TEST_INTERFERE_PATH;
     delete process.env.POS_TEST_INTERFERE_CONTENT;
+    delete process.env.POS_TEST_FAIL_WORKSPACE_UPGRADE_AFTER_MOVES;
     const marker = (await readFile(path.join(root, ".pos-test-fixture"), "utf8")).trim();
     if (marker !== runId) throw new Error("Refusing sandbox cleanup because the test marker changed.");
     const outsideAfter = await hashPath(outside);

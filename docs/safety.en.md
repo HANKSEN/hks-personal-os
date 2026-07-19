@@ -33,13 +33,15 @@ Review actual read, write, execution, and network permissions whenever you chang
 
 ## Project boundary
 
-- The installer installs the CLI and Skill only. It does not back up, initialize, read, or migrate personal data.
-- v1.0 initializes only a new or empty directory.
+- The default installer installs the Skill and its embedded runtime; a global CLI is optional. Software-install approval does not grant initialization, read, audit, or migration access to personal data.
+- The new-root journey initializes only a missing or empty directory, validates a staged root before commit, and routes a non-empty candidate to the existing-directory journey.
+- The existing-directory journey requires a backup warning and exact read authorization. Its default migration copies reviewed items into a separate new Personal OS and never renames, moves, or deletes source files in place.
+- Audit and migration stop on source changes, overlapping roots, symlinks, credential candidates, hash mismatches, or target collisions rather than guessing or overwriting.
 - Personal OS exposes no permanent-delete Changeset action, but a host Agent may have separate system tools; keep its authorization narrow.
 - The project does not automatically publish, message, install generated Skills, pay, or trade.
 
 ## Disclaimer
 
-Personal OS is provided “as is” under the MIT License, without express or implied warranty. AI output, file operations, third-party Agents, plugins, and integrations may fail or cause data loss. Users remain responsible for backup policy, permission scope, Changeset and diff review, credential security, and approval of external actions.
+Personal OS software is provided “as is” under AGPL-3.0-or-later and original explanatory documentation under CC BY-SA 4.0, without express or implied warranty. AI output, file operations, third-party Agents, plugins, and integrations may fail or cause data loss. Users remain responsible for backup policy, permission scope, Changeset and diff review, credential security, and approval of external actions. See [`LICENSING.md`](../LICENSING.md) for scope and the legacy MIT boundary.
 
 This safety notice is not legal, financial, investment, or professional compliance advice.

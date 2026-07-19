@@ -15,7 +15,7 @@
     "99_AI/**"
   ],
   "autoWrite": [
-    "99_AI/runs/**"
+    "99_AI/hosts/*/runs/**"
   ],
   "protected": [
     "POS.md",
@@ -25,10 +25,7 @@
   "ignoreIndex": [
     ".git/**",
     ".pos/**",
-    "99_AI/agents/**",
-    "99_AI/proposed/**",
-    "99_AI/runs/**",
-    "99_AI/trash/**",
+    "99_AI/**",
     "node_modules/**"
   ],
   "maxOperations": 25,

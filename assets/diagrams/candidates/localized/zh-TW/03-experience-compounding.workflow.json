@@ -1,0 +1,247 @@
+{
+  "cards" : [
+    {
+      "dot" : "cyan",
+      "items" : [
+        "回答：我在什麼場景做了什麼",
+        "必須帶時間、行動和結果",
+        "一次經歷不自動等於長期規律"
+      ],
+      "title" : "Experience"
+    },
+    {
+      "dot" : "rose",
+      "items" : [
+        "AI 可以發現模式，但不能直接宣佈真理",
+        "保留證據、反例和適用邊界",
+        "證據不足就回到 Experience"
+      ],
+      "title" : "Principle Candidate"
+    },
+    {
+      "dot" : "emerald",
+      "items" : [
+        "穩定原則進入下次任務的按需上下文",
+        "新的執行結果繼續修正舊原則",
+        "系統積累的是判斷力，而非檔案數量"
+      ],
+      "title" : "復利發生的位置"
+    }
+  ],
+  "diagram_type" : "workflow",
+  "edges" : [
+    {
+      "from" : "data",
+      "to" : "experience",
+      "variant" : "emphasis"
+    },
+    {
+      "from" : "experience",
+      "fromSide" : "bottom",
+      "label" : "復盤觸發",
+      "labelSegment" : 1,
+      "route" : "drop",
+      "to" : "review",
+      "toSide" : "top",
+      "variant" : "emphasis"
+    },
+    {
+      "from" : "review",
+      "to" : "candidate",
+      "variant" : "default"
+    },
+    {
+      "from" : "candidate",
+      "fromSide" : "bottom",
+      "route" : "drop",
+      "to" : "approval",
+      "toSide" : "top",
+      "variant" : "security"
+    },
+    {
+      "from" : "approval",
+      "fromSide" : "bottom",
+      "label" : "確認晉級",
+      "labelSegment" : 1,
+      "route" : "drop",
+      "to" : "sop",
+      "toSide" : "top",
+      "variant" : "emphasis"
+    },
+    {
+      "from" : "sop",
+      "to" : "action",
+      "variant" : "emphasis"
+    },
+    {
+      "from" : "approval",
+      "role" : "error",
+      "to" : "keep",
+      "variant" : "security"
+    },
+    {
+      "from" : "action",
+      "fromSide" : "top",
+      "label" : "執行產生新事實",
+      "role" : "return",
+      "route" : "drop",
+      "to" : "nextdata",
+      "toSide" : "bottom",
+      "variant" : "dashed"
+    }
+  ],
+  "groups" : [
+    {
+      "fromCol" : 0,
+      "id" : "fact_base",
+      "label" : "不美化結果，只保留可核查事實",
+      "lane" : "evidence",
+      "toCol" : 1,
+      "variant" : "dashed"
+    },
+    {
+      "fromCol" : 2,
+      "id" : "promotion",
+      "label" : "Principle 晉級機制",
+      "lane" : "learning",
+      "toCol" : 4,
+      "variant" : "security"
+    }
+  ],
+  "lanes" : [
+    {
+      "id" : "evidence",
+      "label" : "事實與經歷"
+    },
+    {
+      "id" : "learning",
+      "label" : "復盤與判斷"
+    },
+    {
+      "id" : "governance",
+      "label" : "人的確認"
+    },
+    {
+      "id" : "reuse",
+      "label" : "穩定復用"
+    }
+  ],
+  "mainPath" : [
+    "data",
+    "experience",
+    "review",
+    "candidate",
+    "approval",
+    "sop",
+    "action",
+    "nextdata"
+  ],
+  "meta" : {
+    "output" : "assets/diagrams/candidates/03-experience-compounding.html",
+    "subtitle" : "事實進入復盤，復盤形成候選原則，經驗證後再成為穩定 SOP",
+    "title" : "經驗不是存檔，而是下一次行動的升級包",
+    "viewBox" : [
+      720,
+      650
+    ]
+  },
+  "nodes" : [
+    {
+      "col" : 0,
+      "id" : "data",
+      "label" : "Data",
+      "lane" : "evidence",
+      "sublabel" : "指標 · 結果 · 外部反饋",
+      "type" : "database"
+    },
+    {
+      "col" : 1,
+      "id" : "experience",
+      "label" : "Experience",
+      "lane" : "evidence",
+      "sublabel" : "時間 · 場景 · 行動 · 結果",
+      "type" : "frontend"
+    },
+    {
+      "col" : 5,
+      "id" : "nextdata",
+      "label" : "New Data",
+      "lane" : "evidence",
+      "sublabel" : "再次進入 Experience",
+      "type" : "database"
+    },
+    {
+      "col" : 2,
+      "id" : "review",
+      "label" : "Review",
+      "lane" : "learning",
+      "sublabel" : "事實、解釋與未知分開",
+      "type" : "messagebus"
+    },
+    {
+      "col" : 3,
+      "id" : "candidate",
+      "label" : "候選原則",
+      "lane" : "learning",
+      "sublabel" : "可遷移但尚未證實",
+      "tag" : "not truth yet",
+      "type" : "cloud"
+    },
+    {
+      "col" : 4,
+      "id" : "approval",
+      "label" : "證據確認",
+      "lane" : "governance",
+      "sublabel" : "是否足夠穩定？",
+      "type" : "security"
+    },
+    {
+      "col" : 2,
+      "id" : "keep",
+      "label" : "保留經驗",
+      "lane" : "governance",
+      "sublabel" : "證據不足，不晉級",
+      "type" : "security"
+    },
+    {
+      "col" : 4,
+      "id" : "sop",
+      "label" : "穩定 SOP",
+      "lane" : "reuse",
+      "sublabel" : "明確適用條件與邊界",
+      "tag" : "reusable",
+      "type" : "backend"
+    },
+    {
+      "col" : 5,
+      "id" : "action",
+      "label" : "下一次行動",
+      "lane" : "reuse",
+      "sublabel" : "被既有經驗增強",
+      "type" : "messagebus"
+    }
+  ],
+  "phases" : [
+    {
+      "fromCol" : 0,
+      "id" : "observe",
+      "label" : "記錄事實",
+      "toCol" : 1
+    },
+    {
+      "fromCol" : 2,
+      "id" : "learn",
+      "label" : "解釋並提煉",
+      "toCol" : 4,
+      "variant" : "emphasis"
+    },
+    {
+      "fromCol" : 5,
+      "id" : "compound",
+      "label" : "進入下一次行動",
+      "toCol" : 5,
+      "variant" : "dashed"
+    }
+  ],
+  "schema_version" : 1
+}

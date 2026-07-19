@@ -5,7 +5,7 @@
 1. Load compact root context from `POS.md`.
 2. Query `.pos/index.jsonl`; do not load all source files.
 3. Load the primary Area and Project `CONTEXT.md` files.
-4. Load the selected Agent or Skill rules.
+4. Load the current Host Context and the selected Role Profile from the installed Skill.
 5. Load a ranked, bounded set of relevant full-text assets.
 
 ## Default budget
@@ -19,6 +19,8 @@
 Rank exact title, path, Area, Project, and tag matches above excerpt matches. Prefer active and recently updated files only to break ties; recency does not override relevance.
 
 Always include the reason each file was selected. Deduplicate by canonical path and stable ID.
+
+Host Context identifies the actual Agent product executing the Run. Role Profile identifies the task capability such as creator or reviewer. They are separate routing dimensions; Role Profiles do not become physical user-data workspaces.
 
 ## Trust and provenance
 

@@ -188,7 +188,7 @@ test("refuses undo when a later edit conflicts with the applied after-state", as
       operations: [{ id: "update", action: "update", path: destination, expectedHash: await sha256File(absolute), sourceContent: "# Applied\n", reason: "synthetic" }],
     });
     await applyChangeset(root, proposal.changesetPath, { yes: true });
-    const task = await readJson(path.join(root, "99_AI", "runs", proposal.taskId, "task.json"));
+    const task = await readJson(path.join(root, proposal.run, "task.json"));
     assert.equal(task.status, "applied");
     await writeFile(absolute, "# Later edit\n");
     await assert.rejects(() => undoTask(root, proposal.taskId, { yes: true }), (error) => error.code === "UNDO_CONFLICT");
@@ -270,7 +270,7 @@ test("restores files, manifest, and Task status after a late undo failure", asyn
     await assert.rejects(() => undoTask(root, proposal.taskId, { yes: true }), (error) => error.code === "INJECTED_LATE_UNDO_FAILURE");
     assert.equal(await exists(path.join(root, destination)), true);
     const manifest = await readJson(path.join(root, ".pos", "history", proposal.taskId, "manifest.json"));
-    const task = await readJson(path.join(root, "99_AI", "runs", proposal.taskId, "task.json"));
+    const task = await readJson(path.join(root, proposal.run, "task.json"));
     assert.equal(manifest.phase, "committed");
     assert.equal(task.status, "applied");
   });

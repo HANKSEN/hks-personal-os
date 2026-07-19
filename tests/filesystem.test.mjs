@@ -12,7 +12,7 @@ import { withSandbox, writeFixture } from "./helpers.mjs";
 
 test("initializes only the generated empty test root", async () => {
   await withSandbox(async ({ base, root }) => {
-    for (const relative of ["POS.md", "00_Inbox", "10_Projects", "20_Areas", "30_Resources", "90_Archive", "99_AI", ".pos/project.json"]) {
+    for (const relative of ["POS.md", "START_HERE.md", "00_Inbox", "10_Projects", "20_Areas", "30_Resources", "90_Archive", "99_AI", ".pos/project.json"]) {
       assert.equal(await exists(path.join(root, relative)), true, relative);
     }
     const rootContext = await readFile(path.join(root, "POS.md"), "utf8");
@@ -73,15 +73,18 @@ test("parses CRLF frontmatter without losing the first body heading", async () =
   });
 });
 
-test("loads the selected logical Agent manifest into an isolated Run", async () => {
+test("isolates Runs by host while loading the selected Role Profile", async () => {
   await withSandbox(async ({ root }) => {
     const { createRun } = await import("../scripts/lib/runs.mjs");
-    const run = await createRun(root, { goal: "复盘虚构文章", agentId: "reviewer", area: "示例领域" });
-    assert.equal(run.task.agentId, "reviewer");
-    assert.equal(run.context.context.some((item) => item.path === "99_AI/agents/reviewer/AGENT.md"), true);
+    const run = await createRun(root, { goal: "复盘虚构文章", hostId: "codex", roleId: "reviewer", area: "示例领域" });
+    assert.equal(run.task.hostId, "codex");
+    assert.equal(run.task.roleId, "reviewer");
+    assert.match(run.run, /^99_AI\/hosts\/codex\/runs\//u);
+    assert.equal(run.context.context.some((item) => item.path === "99_AI/hosts/codex/CONTEXT.md"), true);
+    assert.equal(run.context.context.some((item) => item.path === "skill://roles/reviewer.md"), true);
     assert.equal(run.task.writeScope.includes("20_Areas/示例领域/**"), true);
     const report = await diagnose(root);
-    assert.equal(report.issues.some((issue) => issue.code === "INCOMPLETE_RUN" && issue.run === run.taskId && issue.status === "created"), true);
+    assert.equal(report.issues.some((issue) => issue.code === "INCOMPLETE_RUN" && issue.run === run.run && issue.status === "created"), true);
   });
 });
 

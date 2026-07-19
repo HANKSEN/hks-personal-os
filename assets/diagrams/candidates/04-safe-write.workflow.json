@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "让 AI 大胆协作，让正式写入保持克制",
+    "subtitle": "所有修改先成为可审阅提案，再由确定性运行时执行并保留撤销能力",
+    "output": "assets/diagrams/candidates/04-safe-write.html",
+    "viewBox": [720, 900]
+  },
+  "lanes": [
+    { "id": "run", "label": "Agent Run" },
+    { "id": "runtime", "label": "确定性运行时" },
+    { "id": "human", "label": "人工确认" },
+    { "id": "commit", "label": "正式写入" },
+    { "id": "audit", "label": "审计记录" },
+    { "id": "exception", "label": "退回与撤销", "variant": "exception" }
+  ],
+  "phases": [
+    { "id": "draft", "label": "先形成草稿与目标路径", "fromCol": 0, "toCol": 1 },
+    { "id": "verify", "label": "先验证，再预览", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "decide", "label": "人作最终决定", "fromCol": 4, "toCol": 4, "variant": "security" },
+    { "id": "record", "label": "写入与留痕", "fromCol": 5, "toCol": 5, "variant": "dashed" }
+  ],
+  "groups": [
+    { "id": "proposal", "label": "AI 可自由修改的临时空间", "lane": "run", "fromCol": 0, "toCol": 1, "variant": "dashed" },
+    { "id": "deterministic", "label": "机器可重复验证", "lane": "runtime", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "approval_gate", "label": "风险显性化", "lane": "human", "fromCol": 4, "toCol": 4, "variant": "security" },
+    { "id": "exception_path", "label": "任何时候都能停下或回退", "lane": "exception", "fromCol": 4, "toCol": 5, "variant": "security" }
+  ],
+  "mainPath": ["draft", "changeset", "validate", "preview", "approval", "apply", "audit"],
+  "nodes": [
+    { "id": "draft", "lane": "run", "col": 0, "type": "messagebus", "label": "工作草稿", "sublabel": "只在本次 Run 内生成" },
+    { "id": "changeset", "lane": "run", "col": 1, "type": "cloud", "label": "CHANGESET.json", "sublabel": "动作 · 来源 · 目标 · 理由", "tag": "proposal" },
+    { "id": "validate", "lane": "runtime", "col": 2, "type": "messagebus", "label": "结构校验", "sublabel": "路径边界 · 禁止操作 · 冲突" },
+    { "id": "preview", "lane": "runtime", "col": 3, "type": "frontend", "label": "Diff 预览", "sublabel": "先看会发生什么" },
+    { "id": "approval", "lane": "human", "col": 4, "type": "security", "label": "人工确认", "sublabel": "逐项接受、修改或拒绝", "tag": "final call" },
+    { "id": "apply", "lane": "commit", "col": 5, "type": "backend", "label": "Apply", "sublabel": "确定性写入正式资产" },
+    { "id": "audit", "lane": "audit", "col": 5, "type": "database", "label": "Audit + Undo", "sublabel": "记录前后哈希与撤销信息" },
+    { "id": "revise", "lane": "exception", "col": 4, "type": "security", "label": "退回修改", "sublabel": "不触碰正式资产" },
+    { "id": "rollback", "lane": "exception", "col": 5, "type": "messagebus", "label": "冲突 / 撤销", "sublabel": "检测变化后安全停下" }
+  ],
+  "edges": [
+    { "from": "draft", "to": "changeset", "variant": "default" },
+    { "from": "changeset", "to": "validate", "label": "提交提案", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "route": "drop", "labelAt": [260, 170] },
+    { "from": "validate", "to": "preview", "variant": "default" },
+    { "from": "preview", "to": "approval", "label": "显示影响范围", "variant": "security", "fromSide": "bottom", "toSide": "top", "route": "drop", "labelSegment": 1 },
+    { "from": "approval", "to": "apply", "label": "确认后执行", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "route": "drop", "labelAt": [563, 418] },
+    { "from": "apply", "to": "audit", "label": "留痕", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "route": "drop" },
+    { "from": "approval", "to": "revise", "label": "拒绝或修改", "variant": "security", "role": "error", "fromSide": "bottom", "toSide": "top", "route": "drop", "labelSegment": 1 },
+    { "from": "revise", "to": "draft", "label": "回到 Run，不污染主目录", "variant": "security", "role": "return", "fromSide": "left", "toSide": "left", "route": "return-left", "labelAt": [150, 425] },
+    { "from": "audit", "to": "rollback", "label": "需要撤销时", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "route": "drop", "labelSegment": 1 }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "默认安全",
+      "items": [
+        "AI 只在 Run 中直接写入",
+        "正式目录不接受静默覆盖",
+        "删除、覆盖和越界路径默认拒绝"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "人能看懂",
+      "items": [
+        "Changeset 说明为什么改、改到哪里",
+        "Diff 在确认前展示真实影响",
+        "核心上下文变更需要显式批准"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "出错可恢复",
+      "items": [
+        "Apply 前后都记录内容哈希",
+        "外部文件变化会触发冲突保护",
+        "保留审计记录与安全撤销入口"
+      ]
+    }
+  ]
+}

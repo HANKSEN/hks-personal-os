@@ -27,7 +27,7 @@ test("CLI exposes help and operates only on explicit generated roots", async () 
     assert.equal(jsonHelp.ok, true);
     assert.equal(jsonHelp.command, "help");
     assert.equal(jsonHelp.result.schema, "pos.help.v1");
-    assert.deepEqual(jsonHelp.result.commands, ["init", "index", "context", "run", "apply", "undo", "doctor", "help"]);
+    assert.deepEqual(jsonHelp.result.commands, ["init", "index", "context", "run", "apply", "undo", "doctor", "audit", "migrate-stage", "migrate-finalize", "workspace-upgrade", "help"]);
 
     const secondary = path.join(base, "secondary-vault");
     await mkdir(secondary);
@@ -39,12 +39,17 @@ test("CLI exposes help and operates only on explicit generated roots", async () 
     assert.equal(indexed.result.meta.schema, "pos.index-meta.v1");
     const context = JSON.parse((await run(["context", root, "--query", "示例领域", "--area", "示例领域", "--json"])).stdout);
     assert.equal(context.result.schema, "pos.context.v1");
-    const task = JSON.parse((await run(["run", root, "--goal", "虚构 CLI 任务", "--area", "示例领域", "--json"])).stdout);
-    assert.match(task.result.run, /^99_AI\/runs\//u);
+    const task = JSON.parse((await run(["run", root, "--goal", "虚构 CLI 任务", "--host", "codex", "--role", "reviewer", "--area", "示例领域", "--json"])).stdout);
+    assert.match(task.result.run, /^99_AI\/hosts\/codex\/runs\//u);
+    assert.equal(task.result.task.hostId, "codex");
+    assert.equal(task.result.task.roleId, "reviewer");
     assert.equal(task.result.task.writeScope.includes("20_Areas/示例领域/**"), true);
     const doctor = JSON.parse((await run(["doctor", root, "--json"])).stdout);
     assert.equal(doctor.result.healthy, true);
     assert.equal(doctor.result.issues.some((issue) => issue.code === "INCOMPLETE_RUN"), true);
+    const workspaceUpgrade = JSON.parse((await run(["workspace-upgrade", root, "--json"])).stdout);
+    assert.equal(workspaceUpgrade.result.upToDate, true);
+    assert.equal(workspaceUpgrade.result.applied, false);
   });
 });
 
@@ -77,5 +82,27 @@ test("CLI parses explicit false safety flags as false", async () => {
       (error) => error.code === 7,
     );
     assert.equal(await sha256File(posPath), originalHash);
+  });
+});
+
+test("CLI exposes a machine-readable read-only audit without changing the source", async () => {
+  await withSandbox(async ({ base, root }) => {
+    const source = path.join(base, "legacy-cli-source");
+    await mkdir(source);
+    const note = path.join(source, "review.md");
+    await writeFile(note, "# Synthetic review\n\nSource must remain unchanged.\n");
+    const before = await sha256File(note);
+    const payload = JSON.parse((await run([
+      "audit", root,
+      "--source", source,
+      "--yes-read", "true",
+      "--json",
+    ])).stdout);
+    assert.equal(payload.ok, true);
+    assert.equal(payload.command, "audit");
+    assert.equal(payload.result.schema, "personal-os.audit-result.v1");
+    assert.equal(payload.result.sourceDigestBefore, payload.result.sourceDigestAfter);
+    assert.equal(await exists(path.join(root, payload.result.plan)), true);
+    assert.equal(await sha256File(note), before);
   });
 });

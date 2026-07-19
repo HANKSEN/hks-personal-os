@@ -1,7 +1,8 @@
 import path from "node:path";
 
+import { loadRoleProfile, resolveHostId, resolveRoleId } from "./ai-workspace.mjs";
 import { PosError } from "./errors.mjs";
-import { exists, readTextBounded, sha256File } from "./io.mjs";
+import { exists, readTextBounded, sha256File, sha256Text } from "./io.mjs";
 import { ensureIndex, searchIndex } from "./indexer.mjs";
 import { canRead, loadPolicy } from "./policy.mjs";
 import { openRoot } from "./root.mjs";
@@ -39,6 +40,26 @@ export async function retrieveContext(rootInput, options = {}) {
     return true;
   };
 
+  const addTrustedRole = async (roleIdInput) => {
+    const profile = await loadRoleProfile(roleIdInput);
+    if (seen.has(profile.path)) return false;
+    const remaining = Math.max(0, Math.min(10000, maxChars - usedChars));
+    if (!remaining) return false;
+    const content = profile.content.slice(0, remaining);
+    bundle.push({
+      path: profile.path,
+      reason: "trusted-role-profile",
+      content,
+      truncated: content.length < profile.content.length,
+      size: profile.content.length,
+      sha256: sha256Text(profile.content),
+      estimatedTokens: Math.ceil(content.length / 4),
+    });
+    usedChars += content.length;
+    seen.add(profile.path);
+    return true;
+  };
+
   await add("POS.md", "root-context", Math.min(maxChars, 12000));
   if (options.area) {
     const area = safeComponent(String(options.area), "Area");
@@ -48,9 +69,13 @@ export async function retrieveContext(rootInput, options = {}) {
     const project = safeComponent(String(options.project), "Project");
     await add(`10_Projects/${project}/CONTEXT.md`, "selected-project-context", 12000);
   }
-  if (options.agentId) {
-    const agentId = safeComponent(String(options.agentId), "Agent ID");
-    await add(`99_AI/agents/${agentId}/AGENT.md`, "selected-agent-manifest", 10000);
+  if (options.hostId) {
+    const hostId = resolveHostId(options.hostId, {});
+    await add(`99_AI/hosts/${hostId}/CONTEXT.md`, "selected-host-context", 8000);
+  }
+  if (options.roleId ?? options.agentId) {
+    const roleId = resolveRoleId(options.roleId ?? options.agentId);
+    await addTrustedRole(roleId);
   }
 
   const { records } = await ensureIndex(root);
@@ -72,6 +97,8 @@ export async function retrieveContext(rootInput, options = {}) {
     query,
     area: options.area ?? null,
     project: options.project ?? null,
+    hostId: options.hostId ? resolveHostId(options.hostId, {}) : null,
+    roleId: (options.roleId ?? options.agentId) ? resolveRoleId(options.roleId ?? options.agentId) : null,
     limits: { maxFiles, maxChars },
     retrievalGap: retrieved === 0,
     gapReason: retrieved === 0 ? "No relevant durable asset matched the query; only explicit Context files were loaded." : null,

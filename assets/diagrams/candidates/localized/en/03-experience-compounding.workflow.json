@@ -1,0 +1,247 @@
+{
+  "schema_version": 1,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Experience upgrades the next action",
+    "subtitle": "Facts become reviews; reviews become candidate principles; evidence promotes them into stable SOPs",
+    "output": "assets/diagrams/candidates/localized/en/03-experience-compounding.html",
+    "viewBox": [
+      720,
+      650
+    ]
+  },
+  "lanes": [
+    {
+      "id": "evidence",
+      "label": "Evidence + experience"
+    },
+    {
+      "id": "learning",
+      "label": "Review + inference"
+    },
+    {
+      "id": "governance",
+      "label": "Human validation"
+    },
+    {
+      "id": "reuse",
+      "label": "Stable reuse"
+    }
+  ],
+  "phases": [
+    {
+      "id": "observe",
+      "label": "Record facts",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "learn",
+      "label": "Review + extract",
+      "fromCol": 2,
+      "toCol": 4,
+      "variant": "emphasis"
+    },
+    {
+      "id": "compound",
+      "label": "Next action",
+      "fromCol": 5,
+      "toCol": 5,
+      "variant": "dashed"
+    }
+  ],
+  "groups": [
+    {
+      "id": "fact_base",
+      "label": "Verifiable facts only",
+      "lane": "evidence",
+      "fromCol": 0,
+      "toCol": 1,
+      "variant": "dashed"
+    },
+    {
+      "id": "promotion",
+      "label": "Principle promotion gate",
+      "lane": "learning",
+      "fromCol": 2,
+      "toCol": 4,
+      "variant": "security"
+    }
+  ],
+  "mainPath": [
+    "data",
+    "experience",
+    "review",
+    "candidate",
+    "approval",
+    "sop",
+    "action",
+    "nextdata"
+  ],
+  "nodes": [
+    {
+      "id": "data",
+      "lane": "evidence",
+      "col": 0,
+      "type": "database",
+      "label": "Data",
+      "sublabel": "metrics · outcomes"
+    },
+    {
+      "id": "experience",
+      "lane": "evidence",
+      "col": 1,
+      "type": "frontend",
+      "label": "Experience",
+      "sublabel": "time · action · result"
+    },
+    {
+      "id": "nextdata",
+      "lane": "evidence",
+      "col": 5,
+      "type": "database",
+      "label": "New Data",
+      "sublabel": "feeds Experience"
+    },
+    {
+      "id": "review",
+      "lane": "learning",
+      "col": 2,
+      "type": "messagebus",
+      "label": "Review",
+      "sublabel": "facts · inference · unknowns"
+    },
+    {
+      "id": "candidate",
+      "lane": "learning",
+      "col": 3,
+      "type": "cloud",
+      "label": "Candidate",
+      "sublabel": "not yet proven",
+      "tag": "not truth yet"
+    },
+    {
+      "id": "approval",
+      "lane": "governance",
+      "col": 4,
+      "type": "security",
+      "label": "Validate",
+      "sublabel": "evidence stable?"
+    },
+    {
+      "id": "keep",
+      "lane": "governance",
+      "col": 2,
+      "type": "security",
+      "label": "Keep",
+      "sublabel": "stay as Experience"
+    },
+    {
+      "id": "sop",
+      "lane": "reuse",
+      "col": 4,
+      "type": "backend",
+      "label": "Stable SOP",
+      "sublabel": "scope + limits",
+      "tag": "reusable"
+    },
+    {
+      "id": "action",
+      "lane": "reuse",
+      "col": 5,
+      "type": "messagebus",
+      "label": "Next Action",
+      "sublabel": "uses prior experience"
+    }
+  ],
+  "edges": [
+    {
+      "from": "data",
+      "to": "experience",
+      "variant": "emphasis"
+    },
+    {
+      "from": "experience",
+      "to": "review",
+      "label": "start review",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "drop",
+      "labelSegment": 1
+    },
+    {
+      "from": "review",
+      "to": "candidate",
+      "variant": "default"
+    },
+    {
+      "from": "candidate",
+      "to": "approval",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "drop"
+    },
+    {
+      "from": "approval",
+      "to": "sop",
+      "label": "promote",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "drop",
+      "labelSegment": 1
+    },
+    {
+      "from": "sop",
+      "to": "action",
+      "variant": "emphasis"
+    },
+    {
+      "from": "approval",
+      "to": "keep",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "from": "action",
+      "to": "nextdata",
+      "label": "creates new facts",
+      "variant": "dashed",
+      "role": "return",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "route": "drop"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Experience",
+      "items": [
+        "What happened in a specific context?",
+        "Always keep time, action, and result",
+        "One event is not automatically a general rule"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Principle Candidate",
+      "items": [
+        "AI may detect patterns but cannot declare truth",
+        "Keep evidence, counterexamples, and scope",
+        "Weak evidence stays in Experience"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Where compounding happens",
+      "items": [
+        "Stable principles enter the next task's context",
+        "New outcomes keep correcting old principles",
+        "The system compounds judgment, not file count"
+      ]
+    }
+  ]
+}

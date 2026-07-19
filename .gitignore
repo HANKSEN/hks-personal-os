@@ -12,6 +12,9 @@ internal/
 private/
 personal-data/
 backups/
+commercial/
+cla-signatures/
+legal/private/
 *.private.md
 
 # Local credentials and signing material

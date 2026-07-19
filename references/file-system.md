@@ -44,3 +44,13 @@ Never silently convert an imported source into a statement of the user's belief.
 ## Canonical-copy rule
 
 Keep one formal canonical copy. Use relative Markdown links, stable IDs, or the generated index to expose an asset from other Areas and Projects. A working draft and a published final version may both exist when their lifecycle roles differ, but only one is the canonical published Artifact.
+
+## AI workspace ownership
+
+`99_AI` contains temporary execution state and is excluded from the durable index:
+
+```text
+99_AI/hosts/<host-id>/runs/<run-id>/{work,proposed,logs}
+```
+
+The Host is the Agent product that executed the task, such as `codex` or `claude-code`. The Role is separate task metadata loaded from the installed Skill, such as `creator` or `reviewer`. Do not create Role-named host directories. Durable output is promoted through a reviewed Changeset; cross-host continuation uses an explicit handoff and a new Run.

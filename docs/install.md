@@ -1,264 +1,157 @@
-# 安装 Personal OS
+# 安装与初始化 Hks Personal OS
 
 [English](install.en.md) | 简体中文
 
-## 使用前先确认安全边界
+普通用户只需要安装 **Skill**。Skill 包内已经包含初始化、索引、Changeset、Doctor、Undo、只读审计和复制迁移所需的确定性本地运行时；全局 `pos` CLI 只面向终端、自动化和故障排查，不是必要安装项。
 
-安装器只安装 Personal OS 软件和 Skill，不会备份、初始化、读取、迁移或整理任何个人数据目录。
-
-在首次授权 Agent 访问有价值的文件前，请先：
-
-1. 备份完整目录及附件；
-2. 将备份保存在原目录之外；
-3. 随机恢复几个文件，验证备份可用；
-4. 阅读[备份、安全提示与免责声明](safety.md)。
-
-Changeset、Undo、Git、云同步和服务商版本历史都不能代替独立备份。
+> [!WARNING]
+> 软件安装不等于授权访问个人文件。在让 Agent 读取任何有价值的旧目录前，请先做完整独立备份，并随机恢复文件确认备份可用。详见[安全提示与免责声明](safety.md)。
 
 ## 环境要求
 
 - Node.js 20 或更高版本；
-- npm/npx；
-- Codex、Claude Code 或其他支持本地文件、终端和 Skill/指令文件的 Agent；
-- macOS 或 Linux。Windows 是兼容目标，但当前尚未完成独立 CI 验收。
+- 能读取本地 Skill 并执行本地 Node.js 文件的 Agent；
+- 不需要 `sudo`，也不需要安装 npm 运行时依赖。
 
-安装不需要 `sudo`。默认软件目录为：
+## 最推荐：把 GitHub 链接发给 Agent
 
-```text
-~/.local/share/personal-os/versions/<version>/
-```
-
-默认命令目录为：
+把仓库链接和下面这段话发给 Codex、Claude Code、WorkBuddy、QCode、Kimi Agent 或其他本地 Agent：
 
 ```text
-~/.local/bin/
+请打开 https://github.com/HANKSEN/hks-personal-os ，完整阅读 AGENT_SETUP.md，
+按协议帮我安装并初始化 Hks Personal OS。默认只安装 Skill，不安装全局 CLI。
+安装后不要结束：继续问我是“新建一套”还是“整理已有目录”。
+每次授权范围变化前，先说明精确路径、读写方式和安全影响，并等我确认。
 ```
 
-旧版本目录会保留。安装器不会覆盖无关的现有命令、普通文件或 Skill 目录。
+Agent 会连续完成：
 
-## 方式一：把 GitHub 链接交给 Agent
+1. 检查 Node.js 和真实的 Skill 安装目录；
+2. 无写入预览安装位置；
+3. 经确认后安装 Skill 和内置运行时；
+4. 询问“新建一套”还是“整理已有目录”；
+5. 确认数据路径后初始化，或在备份门槛后只读审计旧目录；
+6. 运行健康检查；
+7. 用一篇文章、一个问题或一项真实任务带用户完成第一次使用。
 
-适合不熟悉命令行的用户。
+安装、初始化、旧目录读取、复制迁移和正式 Changeset Apply 是不同授权，不会因为第一次确认而自动放开后续权限。
 
-把仓库链接发送给当前 Agent，然后发送：
+## 一行命令：交互式 Setup
+
+```bash
+npx --yes --package=github:HANKSEN/hks-personal-os personal-os setup --agent auto
+```
+
+终端会依次询问安装、工作空间模式和目标路径。默认创建：
 
 ```text
-请打开这个 GitHub 仓库并阅读根目录 AGENT_INSTALL.md。先检查 Node.js 和你实际支持的 Skill 目录，用 dry-run 展示准备创建的所有路径。得到我确认后完成安装并验证 pos help。不要初始化、读取或迁移任何个人数据目录。
+~/.local/share/personal-os/versions/<version>/   # 自包含版本包
+~/.agents/skills/personal-os                     # 通用 Skill 入口
 ```
 
-Agent 应遵循 [AGENT_INSTALL.md](../AGENT_INSTALL.md)：
+如果已经存在 Codex 或 Claude Code 的用户配置目录，`--agent auto` 还会安装相应 Skill 入口。默认不会创建 `~/.local/bin/pos`，也不要求配置 `PATH`。
 
-1. 在新临时目录克隆或下载仓库；
-2. 阅读安装、安全和 Skill 协议；
-3. 根据真实宿主选择安装目标；
-4. 先执行 `--dry-run --json`；
-5. 把完整安装路径展示给用户；
-6. 用户确认后添加 `--yes`；
-7. 验证 CLI 和 Skill；
-8. 提醒用户重启或新建 Agent 会话。
-
-安装软件的授权不等于授权 Agent 访问个人文件。
-
-## 方式二：GitHub 一行命令
-
-直接从 GitHub 安装：
+只想先看完整安装计划，不写任何文件：
 
 ```bash
-npx --yes --package=github:HANKSEN/hks-personal-os personal-os --agent auto --yes
+npx --yes --package=github:HANKSEN/hks-personal-os personal-os setup \
+  --agent auto --dry-run --json
 ```
 
-这条命令会：
+## Agent 自动化调用
 
-- 从 GitHub 临时获取软件包；
-- 将稳定副本复制到用户级版本目录；
-- 在 `~/.local/bin` 创建 `pos` 和 `personal-os` 命令；
-- 安装通用 Agents Skills 入口；
-- 自动识别已经存在的 Codex/Claude 用户配置目录；
-- 输出安装位置、PATH 状态、重启提示和备份警告。
-
-不加 `--yes` 时只生成计划：
+Agent 可以逐步读取 `personal-os.setup.v1` 的 `state`、`pendingAuthorization` 和 `nextAction`，用自然语言继续引导。例如新建模式：
 
 ```bash
-npx --yes --package=github:HANKSEN/hks-personal-os personal-os --agent auto --json
+node scripts/install.mjs setup \
+  --agent codex \
+  --yes \
+  --workspace-mode new \
+  --root "/absolute/path/to/Personal_OS" \
+  --json
 ```
 
-完全无写入的预检：
-
-```bash
-npx --yes --package=github:HANKSEN/hks-personal-os personal-os --agent auto --dry-run --json
-```
-
-## 方式三：从本地源码安装
-
-已经下载或克隆仓库时：
-
-```bash
-cd /absolute/path/to/personal-os
-./install.sh --agent auto --dry-run
-./install.sh --agent auto --yes
-```
-
-也可以直接运行：
-
-```bash
-node scripts/install.mjs --agent auto --yes
-```
-
-安装器不运行 npm 生命周期脚本，也没有运行时 npm 依赖。
-
-## 选择 Agent 目标
-
-### 自动模式
-
-```bash
-personal-os --agent auto --yes
-```
-
-安装：
-
-- 通用目录：`~/.agents/skills/personal-os`；
-- 如果检测到 `~/.codex`，同时安装 Codex Skill；
-- 如果检测到 `~/.claude`，同时安装 Claude Code Skill。
-
-通用目录不保证所有产品都会自动发现。是否支持取决于具体宿主。
-
-### Codex
-
-```bash
-personal-os --agent codex --yes
-```
-
-目标：
+上面只会停在初始化确认。用户确认精确路径后，再增加：
 
 ```text
-~/.codex/skills/personal-os
+--initialize
 ```
 
-### Claude Code
-
-```bash
-personal-os --agent claude --yes
-```
-
-目标：
+可选 Area：
 
 ```text
-~/.claude/skills/personal-os
+--areas "创作,个体工具开发"
 ```
 
-### WorkBuddy、QCode、Kimi 或其他 Agent
+不填写 Area 也会得到一套健康目录，之后可以在第一次真实任务中按需创建。
 
-不同版本、发行渠道和产品可能使用不同目录。Personal OS 不猜测未确认的路径。
+## 宿主安装目标
 
-先从产品文档、设置或当前 Agent 获取它真实支持的 Skill 父目录，然后运行：
+| 宿主 | 参数 | 默认 Skill 位置 |
+|---|---|---|
+| 自动识别 | `--agent auto` | 通用位置，并适配已检测到的 Codex / Claude |
+| 通用 Agents Skills | `--agent generic` | `~/.agents/skills/personal-os` |
+| Codex | `--agent codex` | `~/.codex/skills/personal-os` |
+| Claude Code | `--agent claude` | `~/.claude/skills/personal-os` |
+| 明确自定义宿主 | `--agent none --skill-dir <父目录>` | 用户或宿主明确提供的位置 |
+
+Personal OS 不猜测 WorkBuddy、QCode、Kimi 等不同版本的未公开目录。若宿主不能自动发现 Skill，但能读取文件和运行 Node.js，可以让 Agent 显式读取已安装版本中的 `SKILL.md` 和调用同包 `scripts/pos.mjs`；此时应说明这是兼容模式，不是假装原生发现成功。
+
+## 全局 CLI：仅在需要时安装
+
+只有用户明确需要终端命令、脚本自动化或 CI 时才使用：
 
 ```bash
-personal-os \
-  --agent none \
-  --skill-dir "/真实的/skills/父目录" \
-  --yes
+npx --yes --package=github:HANKSEN/hks-personal-os personal-os setup \
+  --agent auto --with-cli
 ```
 
-需要安装到多个明确目录时，重复 `--skill-dir`：
+这会额外创建 `pos` 和 `personal-os` 命令链接。普通 Skill 使用不需要它们。安装 CLI 仍不授予任何个人数据目录权限。
+
+## 从本地仓库运行
 
 ```bash
-personal-os \
-  --agent none \
-  --skill-dir "/path/a" \
-  --skill-dir "/path/b" \
-  --yes
+cd /absolute/path/to/hks-personal-os
+./install.sh setup --agent auto
 ```
 
-如果宿主不支持 Skill 目录，仍然可以安装 `pos` CLI，并让 Agent 在每次任务中显式读取已安装目录内的 `SKILL.md`。这不如原生 Skill 发现方便，但不会要求猜测系统路径。
-
-## 自定义安装位置
+结构化预检：
 
 ```bash
-personal-os \
-  --data-dir "/custom/data/personal-os" \
-  --bin-dir "/custom/bin" \
-  --agent generic \
-  --yes
+./install.sh setup --agent auto --dry-run --json
 ```
 
-也可以使用环境变量：
+## 只安装，不初始化
 
-```text
-PERSONAL_OS_DATA_DIR
-PERSONAL_OS_BIN_DIR
-XDG_DATA_HOME
-```
-
-## PATH 设置
-
-如果安装结果提示 `~/.local/bin` 不在 `PATH`，把下面一行加入当前 Shell 配置：
+高级用户可以显式停止在安装完成：
 
 ```bash
-export PATH="$HOME/.local/bin:$PATH"
+node scripts/install.mjs setup --agent auto --install-only
 ```
 
-zsh 通常写入 `~/.zshrc`，bash 通常写入 `~/.bashrc`。修改后打开新终端并验证：
+之后新开 Agent 会话，说“使用 personal-os Skill 帮我开始”，即可继续工作空间初始化。
 
-```bash
-command -v pos
-pos help
-```
+## 验证是否成功
 
-Agent 也可以先使用安装结果返回的绝对 CLI 路径完成验证，不应擅自修改 Shell 配置。
+正常成功结果应包含：
 
-## 安装结果验证
+- 安装版本与 Skill 绝对路径；
+- `embeddedRuntime` 路径；
+- `globalCliInstalled: false`（默认）；
+- 初始化后的 `health.healthy: true`；
+- 根目录中的 `START_HERE.md`；
+- 下一步自然语言请求。
 
-```bash
-pos help
-personal-os --dry-run --json
-```
+某些宿主只在启动时发现新 Skill，安装后需要新开一个 Agent 会话。
 
-同时检查对应 Skill 目标中存在：
+## 冲突、升级与卸载
 
-```text
-SKILL.md
-AGENT_INSTALL.md
-references/
-assets/
-scripts/
-```
+- 安装器拒绝覆盖无关普通文件、目录或符号链接；
+- 同版本重复运行会复用已有版本，不创建重复安装；
+- 旧版本目录会保留，Skill 链接只在确认其属于 Personal OS 时更新；
+- 不要为了排除冲突直接递归删除目录；
+- 卸载软件时只移除已确认属于 Personal OS 的 Skill/CLI 链接，不触碰 Personal OS 数据根目录。
 
-安装 Skill 后需要启动新的 Agent 会话，宿主才可能重新发现它。
+已安装用户应使用可预览、可回退的软件更新协议，不要覆盖安装目录。详见[版本更新与回退指南](update.md)和根目录的 `AGENT_UPDATE.md`。
 
-## 冲突处理
-
-安装器遵循“拒绝覆盖”原则：
-
-- 现有 `pos` 是普通文件或无关链接：停止安装；
-- Skill 目标是已有普通目录：停止安装；
-- 版本目录存在但没有合法安装标记：停止安装；
-- 已经是同一版本：复用；
-- 链接指向受管理的旧 Personal OS 版本：可以安全更新链接并保留旧版本目录。
-
-不要为了解决冲突直接删除文件。先检查现有内容，再选择其他 `--bin-dir` 或 `--skill-dir`。
-
-## 创建第一个 Personal OS
-
-安装完成后，不要让 Agent 自动扫描或接管已有目录。
-
-先阅读[15 分钟首次运行](first-run.md)和[安全说明](safety.md)，选择一个全新或空目录，再执行：
-
-```bash
-pos init /absolute/path/to/new-personal-os \
-  --areas "学习,工作"
-
-pos doctor /absolute/path/to/new-personal-os
-```
-
-如果将来需要使用旧资料，先备份原目录，再由用户主动把少量选定文件复制到新 Personal OS 的 `00_Inbox`。v1.0 不提供全量迁移或原地整理功能。
-
-## 卸载
-
-安装器不会自动卸载或删除版本目录。手动卸载前，应先确认链接确实属于 Personal OS，不要使用宽泛的递归删除命令。
-
-建议让 Agent：
-
-1. 只检查安装结果中明确列出的 CLI 和 Skill 链接；
-2. 预览将要移除的链接；
-3. 保留版本目录，直到确认不再需要回滚；
-4. 不触碰任何 Personal OS 数据根目录。
+安装完成后的两种用法见[首次使用指南](first-run.md)和[已有目录整理指南](existing-directory.md)。

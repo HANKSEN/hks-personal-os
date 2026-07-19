@@ -1,0 +1,329 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "One directory, two spaces",
+    "subtitle": "PARA owns durable assets; 99_AI isolates each Agent's temporary work",
+    "output": "assets/diagrams/candidates/localized/en/02-personal-os-system-map.html",
+    "viewBox": [
+      1420,
+      760
+    ]
+  },
+  "components": [
+    {
+      "id": "pos",
+      "type": "security",
+      "label": "POS.md",
+      "sublabel": "global rules + personal context",
+      "pos": [
+        250,
+        40
+      ],
+      "size": [
+        180,
+        72
+      ],
+      "tag": "always read"
+    },
+    {
+      "id": "inbox",
+      "type": "external",
+      "label": "00_Inbox",
+      "sublabel": "intent / file entry",
+      "pos": [
+        40,
+        260
+      ],
+      "size": [
+        170,
+        72
+      ]
+    },
+    {
+      "id": "router",
+      "type": "messagebus",
+      "label": "Intent router",
+      "sublabel": "goal · domain · lifecycle",
+      "pos": [
+        250,
+        260
+      ],
+      "size": [
+        170,
+        72
+      ]
+    },
+    {
+      "id": "ai",
+      "type": "cloud",
+      "label": "99_AI / hosts",
+      "sublabel": "Codex · Claude · Kimi …",
+      "pos": [
+        470,
+        260
+      ],
+      "size": [
+        180,
+        72
+      ],
+      "tag": "isolated runs"
+    },
+    {
+      "id": "para",
+      "type": "backend",
+      "label": "PARA space",
+      "sublabel": "one owner after approval",
+      "pos": [
+        700,
+        260
+      ],
+      "size": [
+        180,
+        72
+      ],
+      "tag": "durable"
+    },
+    {
+      "id": "projects",
+      "type": "frontend",
+      "label": "Projects",
+      "sublabel": "goal + completion criteria",
+      "pos": [
+        940,
+        70
+      ],
+      "size": [
+        170,
+        68
+      ]
+    },
+    {
+      "id": "areas",
+      "type": "messagebus",
+      "label": "Areas",
+      "sublabel": "ongoing responsibilities",
+      "pos": [
+        940,
+        190
+      ],
+      "size": [
+        170,
+        68
+      ]
+    },
+    {
+      "id": "resources",
+      "type": "cloud",
+      "label": "Resources",
+      "sublabel": "external, not yet absorbed",
+      "pos": [
+        940,
+        310
+      ],
+      "size": [
+        170,
+        68
+      ]
+    },
+    {
+      "id": "archive",
+      "type": "database",
+      "label": "Archive",
+      "sublabel": "inactive but traceable",
+      "pos": [
+        940,
+        430
+      ],
+      "size": [
+        170,
+        68
+      ]
+    },
+    {
+      "id": "assets",
+      "type": "backend",
+      "label": "Area asset types",
+      "sublabel": "K · E · P · A · D",
+      "pos": [
+        1150,
+        190
+      ],
+      "size": [
+        145,
+        68
+      ],
+      "tag": "optional"
+    },
+    {
+      "id": "handoffs",
+      "type": "frontend",
+      "label": "shared / handoffs",
+      "sublabel": "cross-Agent package",
+      "pos": [
+        470,
+        490
+      ],
+      "size": [
+        180,
+        68
+      ]
+    },
+    {
+      "id": "control",
+      "type": "database",
+      "label": ".pos",
+      "sublabel": "index · policy · audit · undo",
+      "pos": [
+        250,
+        490
+      ],
+      "size": [
+        180,
+        68
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "AI temporary space · isolated + disposable",
+      "wraps": [
+        "ai",
+        "handoffs"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "Durable asset space · reusable + traceable",
+      "wraps": [
+        "para",
+        "projects",
+        "areas",
+        "resources",
+        "archive",
+        "assets"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": "pos",
+      "to": "router",
+      "label": "rules + prefs",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "inbox",
+      "to": "router",
+      "label": "one entry",
+      "variant": "emphasis",
+      "labelAt": [
+        230,
+        240
+      ]
+    },
+    {
+      "from": "router",
+      "to": "ai",
+      "label": "Host + Role + Run",
+      "variant": "emphasis",
+      "labelAt": [
+        445,
+        240
+      ]
+    },
+    {
+      "from": "ai",
+      "to": "para",
+      "label": "approved Changeset",
+      "variant": "emphasis",
+      "labelAt": [
+        675,
+        240
+      ]
+    },
+    {
+      "from": "para",
+      "to": "projects",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "para",
+      "to": "areas",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "para",
+      "to": "resources",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "para",
+      "to": "archive",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "areas",
+      "to": "assets",
+      "label": "optional split",
+      "variant": "dashed",
+      "labelAt": [
+        1130,
+        170
+      ]
+    },
+    {
+      "from": "handoffs",
+      "to": "ai",
+      "label": "explicit handoff",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "from": "control",
+      "to": "router",
+      "label": "index + audit",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "bottom"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "PARA owns location",
+      "items": [
+        "Project: finite action",
+        "Area: ongoing responsibility",
+        "Resource: external reference",
+        "Archive: inactive material"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "99_AI owns process",
+      "items": [
+        "Separate workspaces for Codex, Claude Code, and others",
+        "Every Run keeps work, proposed changes, and logs",
+        "Agents exchange work only through explicit handoffs"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Asset types own meaning",
+      "items": [
+        "K: Knowledge　E: Experience",
+        "P: Principles　A: Artifacts",
+        "D: Data; an Area does not need every type"
+      ]
+    }
+  ]
+}

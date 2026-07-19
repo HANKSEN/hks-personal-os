@@ -153,8 +153,8 @@ test("rejects symlinked internal control paths before Run, history, or audit acc
   });
 
   await withSandbox(async ({ root, outside }) => {
-    await rm(path.join(root, "99_AI", "runs"), { recursive: true });
-    await symlink(outside, path.join(root, "99_AI", "runs"));
+    await rm(path.join(root, "99_AI", "hosts"), { recursive: true });
+    await symlink(outside, path.join(root, "99_AI", "hosts"));
     await assert.rejects(() => createRun(root, { goal: "不应创建的任务" }), (error) => error.code === "SYMLINK_REJECTED");
   });
 
@@ -249,7 +249,7 @@ test("undo rejects tampered backup content and snapshot retargeting", async () =
   });
 });
 
-test("rejects symlinked dynamic Task and Agent control files", async () => {
+test("rejects symlinked dynamic Task and Host control files", async () => {
   await withSandbox(async ({ base, root }) => {
     const proposal = await createProposal(root, {
       goal: "验证 Task 控制文件链接",
@@ -265,10 +265,11 @@ test("rejects symlinked dynamic Task and Agent control files", async () => {
   });
 
   await withSandbox(async ({ root, outside }) => {
-    const manifest = path.join(root, "99_AI", "agents", "research", "AGENT.md");
-    await rm(manifest);
-    await symlink(path.join(outside, "canary.txt"), manifest);
-    await assert.rejects(() => createRun(root, { goal: "不应加载链接 Agent", agentId: "research" }), (error) => error.code === "SYMLINK_REJECTED");
+    await createRun(root, { goal: "创建宿主工作区", hostId: "codex", roleId: "research" });
+    const context = path.join(root, "99_AI", "hosts", "codex", "CONTEXT.md");
+    await rm(context);
+    await symlink(path.join(outside, "canary.txt"), context);
+    await assert.rejects(() => createRun(root, { goal: "不应加载链接 Host", hostId: "codex", roleId: "research" }), (error) => error.code === "SYMLINK_REJECTED");
   });
 });
 
@@ -315,7 +316,7 @@ test("rejects proposal content and Changesets that do not belong to the referenc
     });
     await assert.rejects(() => planChangeset(root, `${first.run}/CHANGESET.json`), (error) => error.code === "INVALID_PROPOSAL_SOURCE");
 
-    const misplaced = "99_AI/proposed/misplaced.json";
+    const misplaced = "99_AI/shared/misplaced.json";
     await writeJsonAtomic(path.join(root, misplaced), {
       schema: "pos.changeset.v1",
       taskId: first.taskId,
@@ -323,6 +324,6 @@ test("rejects proposal content and Changesets that do not belong to the referenc
       writeScope: ["20_Areas/示例领域/Knowledge/**"],
       operations: [],
     });
-    await assert.rejects(() => planChangeset(root, misplaced), (error) => error.code === "CHANGESET_TASK_LOCATION_MISMATCH");
+    await assert.rejects(() => planChangeset(root, misplaced), (error) => error.code === "CHANGESET_LOCATION_REJECTED");
   });
 });

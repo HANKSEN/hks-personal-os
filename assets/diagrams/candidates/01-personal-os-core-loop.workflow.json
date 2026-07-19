@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "从一句话到可复用资产",
+    "subtitle": "Hks Personal OS 核心闭环 · 人只表达目标，AI 负责路由、协作与提案",
+    "output": "assets/diagrams/candidates/01-personal-os-core-loop.html",
+    "viewBox": [720, 760]
+  },
+  "lanes": [
+    { "id": "intake", "label": "统一入口" },
+    { "id": "understand", "label": "理解与路由" },
+    { "id": "workspace", "label": "Agent 隔离工作区" },
+    { "id": "governance", "label": "人的最终决定" },
+    { "id": "durable", "label": "正式资产" }
+  ],
+  "phases": [
+    { "id": "capture", "label": "先接住，不要求用户分类", "fromCol": 0, "toCol": 1 },
+    { "id": "understanding", "label": "明确目标，只取必要上下文", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "collaboration", "label": "隔离协作，经确认后沉淀", "fromCol": 4, "toCol": 5, "variant": "dashed" }
+  ],
+  "groups": [
+    { "id": "route_loop", "label": "最少必要澄清", "lane": "understand", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "run_space", "label": "AI 可自由工作的临时空间", "lane": "workspace", "fromCol": 4, "toCol": 5, "variant": "dashed" },
+    { "id": "approval_space", "label": "核心资产写入边界", "lane": "governance", "fromCol": 4, "toCol": 5, "variant": "security" }
+  ],
+  "mainPath": ["intent", "inbox", "router", "context", "run", "proposal", "approval", "assets"],
+  "nodes": [
+    { "id": "intent", "lane": "intake", "col": 0, "type": "external", "label": "输入 / 文件", "sublabel": "说目标，不先分类" },
+    { "id": "inbox", "lane": "intake", "col": 1, "type": "messagebus", "label": "00_Inbox", "sublabel": "唯一入口", "tag": "low friction" },
+    { "id": "router", "lane": "understand", "col": 2, "type": "messagebus", "label": "意图澄清", "sublabel": "必要时只追问 1–3 个问题" },
+    { "id": "context", "lane": "understand", "col": 3, "type": "cloud", "label": "按需上下文", "sublabel": "Area + Project + 相关资产", "tag": "bounded context" },
+    { "id": "run", "lane": "workspace", "col": 4, "type": "messagebus", "label": "Host 隔离 Run", "sublabel": "work · proposed · logs", "tag": "临时区" },
+    { "id": "proposal", "lane": "workspace", "col": 5, "type": "cloud", "label": "写入提案", "sublabel": "Changeset：路径与范围" },
+    { "id": "approval", "lane": "governance", "col": 5, "type": "security", "label": "人工确认", "sublabel": "接受、修改或退回", "tag": "final call" },
+    { "id": "assets", "lane": "durable", "col": 5, "type": "backend", "label": "正式资产", "sublabel": "PARA 归属 + 资产类型", "tag": "approved only" }
+  ],
+  "edges": [
+    { "from": "intent", "to": "inbox", "variant": "emphasis" },
+    { "from": "inbox", "to": "router", "label": "真实目标？", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "route": "drop", "labelAt": [260, 170] },
+    { "from": "router", "to": "context", "variant": "default" },
+    { "from": "context", "to": "run", "label": "只加载必要信息", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "route": "drop", "labelAt": [465, 294] },
+    { "from": "run", "to": "proposal", "variant": "default" },
+    { "from": "proposal", "to": "approval", "variant": "security", "fromSide": "bottom", "toSide": "top", "route": "drop" },
+    { "from": "approval", "to": "assets", "label": "确认写入", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "route": "drop", "labelAt": [625, 542] },
+    { "from": "approval", "to": "run", "label": "未确认：回到草稿", "variant": "security", "role": "error", "fromSide": "left", "toSide": "left", "route": "return-left" },
+    { "from": "assets", "to": "context", "label": "下次按需复用", "variant": "dashed", "role": "return", "fromSide": "right", "toSide": "right", "route": "outside-right", "width": 1.2 }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "统一入口",
+      "items": [
+        "用户只需说想做什么或丢入文件",
+        "不要求先理解 PARA 或资产类型",
+        "不清晰时再进行最少必要追问"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "两条边界",
+      "items": [
+        "AI 在自己的 Run 内自由生成临时产物",
+        "正式资产通过 Changeset 申请写入",
+        "人的确认始终是最后一道门"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "复利结果",
+      "items": [
+        "Knowledge：我理解了什么",
+        "Experience：我经历了什么",
+        "Principles：下次如何做得更好",
+        "Artifacts + Data：产物与事实证据"
+      ]
+    }
+  ]
+}

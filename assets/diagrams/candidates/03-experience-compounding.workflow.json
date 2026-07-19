@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "经验不是存档，而是下一次行动的升级包",
+    "subtitle": "事实进入复盘，复盘形成候选原则，经验证后再成为稳定 SOP",
+    "output": "assets/diagrams/candidates/03-experience-compounding.html",
+    "viewBox": [720, 650]
+  },
+  "lanes": [
+    { "id": "evidence", "label": "事实与经历" },
+    { "id": "learning", "label": "复盘与判断" },
+    { "id": "governance", "label": "人的确认" },
+    { "id": "reuse", "label": "稳定复用" }
+  ],
+  "phases": [
+    { "id": "observe", "label": "记录事实", "fromCol": 0, "toCol": 1 },
+    { "id": "learn", "label": "解释并提炼", "fromCol": 2, "toCol": 4, "variant": "emphasis" },
+    { "id": "compound", "label": "进入下一次行动", "fromCol": 5, "toCol": 5, "variant": "dashed" }
+  ],
+  "groups": [
+    { "id": "fact_base", "label": "不美化结果，只保留可核查事实", "lane": "evidence", "fromCol": 0, "toCol": 1, "variant": "dashed" },
+    { "id": "promotion", "label": "Principle 晋级机制", "lane": "learning", "fromCol": 2, "toCol": 4, "variant": "security" }
+  ],
+  "mainPath": ["data", "experience", "review", "candidate", "approval", "sop", "action", "nextdata"],
+  "nodes": [
+    { "id": "data", "lane": "evidence", "col": 0, "type": "database", "label": "Data", "sublabel": "指标 · 结果 · 外部反馈" },
+    { "id": "experience", "lane": "evidence", "col": 1, "type": "frontend", "label": "Experience", "sublabel": "时间 · 场景 · 行动 · 结果" },
+    { "id": "nextdata", "lane": "evidence", "col": 5, "type": "database", "label": "New Data", "sublabel": "再次进入 Experience" },
+    { "id": "review", "lane": "learning", "col": 2, "type": "messagebus", "label": "Review", "sublabel": "事实、解释与未知分开" },
+    { "id": "candidate", "lane": "learning", "col": 3, "type": "cloud", "label": "候选原则", "sublabel": "可迁移但尚未证实", "tag": "not truth yet" },
+    { "id": "approval", "lane": "governance", "col": 4, "type": "security", "label": "证据确认", "sublabel": "是否足够稳定？" },
+    { "id": "keep", "lane": "governance", "col": 2, "type": "security", "label": "保留经验", "sublabel": "证据不足，不晋级" },
+    { "id": "sop", "lane": "reuse", "col": 4, "type": "backend", "label": "稳定 SOP", "sublabel": "明确适用条件与边界", "tag": "reusable" },
+    { "id": "action", "lane": "reuse", "col": 5, "type": "messagebus", "label": "下一次行动", "sublabel": "被既有经验增强" }
+  ],
+  "edges": [
+    { "from": "data", "to": "experience", "variant": "emphasis" },
+    { "from": "experience", "to": "review", "label": "复盘触发", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "route": "drop", "labelSegment": 1 },
+    { "from": "review", "to": "candidate", "variant": "default" },
+    { "from": "candidate", "to": "approval", "variant": "security", "fromSide": "bottom", "toSide": "top", "route": "drop" },
+    { "from": "approval", "to": "sop", "label": "确认晋级", "variant": "emphasis", "fromSide": "bottom", "toSide": "top", "route": "drop", "labelSegment": 1 },
+    { "from": "sop", "to": "action", "variant": "emphasis" },
+    { "from": "approval", "to": "keep", "variant": "security", "role": "error" },
+    { "from": "action", "to": "nextdata", "label": "执行产生新事实", "variant": "dashed", "role": "return", "fromSide": "top", "toSide": "bottom", "route": "drop" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Experience",
+      "items": [
+        "回答：我在什么场景做了什么",
+        "必须带时间、行动和结果",
+        "一次经历不自动等于长期规律"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Principle Candidate",
+      "items": [
+        "AI 可以发现模式，但不能直接宣布真理",
+        "保留证据、反例和适用边界",
+        "证据不足就回到 Experience"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "复利发生的位置",
+      "items": [
+        "稳定原则进入下次任务的按需上下文",
+        "新的执行结果继续修正旧原则",
+        "系统积累的是判断力，而非文件数量"
+      ]
+    }
+  ]
+}

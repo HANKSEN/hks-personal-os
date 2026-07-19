@@ -48,6 +48,6 @@ status: active
 ## Permission policy
 
 - Default mode: collaborative
-- AI may write freely only inside the current `99_AI/runs/<task-id>/` workspace.
+- AI may write freely only inside its current `99_AI/hosts/<host-id>/runs/<task-id>/` workspace.
 - Formal writes require a reviewed Changeset.
 - Core Context changes require explicit approval.

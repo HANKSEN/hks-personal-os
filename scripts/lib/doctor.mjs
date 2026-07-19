@@ -1,17 +1,20 @@
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 
+import { AI_WORKSPACE_LAYOUT, resolveHostId, workspaceLayout } from "./ai-workspace.mjs";
 import { buildIndex } from "./indexer.mjs";
 import { exists, readJson, readJsonl } from "./io.mjs";
-import { openRoot, ROOT_DIRS } from "./root.mjs";
+import { LEGACY_ROOT_DIRS, openRoot, ROOT_DIRS } from "./root.mjs";
 import { assertNoSymlinkComponents, walkSafe } from "./safe-path.mjs";
 
 export async function diagnose(rootInput) {
-  const { root } = await openRoot(rootInput);
+  const { root, marker } = await openRoot(rootInput);
   const issues = [];
-  for (const relative of ["POS.md", ...ROOT_DIRS]) {
+  const modernWorkspace = workspaceLayout(marker) === AI_WORKSPACE_LAYOUT;
+  for (const relative of ["POS.md", ...(modernWorkspace ? ROOT_DIRS : LEGACY_ROOT_DIRS)]) {
     if (!(await exists(path.join(root, relative)))) issues.push({ severity: "error", code: "MISSING_REQUIRED_PATH", path: relative });
   }
+  if (!modernWorkspace) issues.push({ severity: "warning", code: "LEGACY_AI_WORKSPACE", message: "Preview and approve `pos workspace-upgrade <root>` before creating new Runs." });
 
   const current = await buildIndex(root, { write: false, rebuild: true });
   const metaPath = path.join(root, ".pos", "index.meta.json");
@@ -48,28 +51,58 @@ export async function diagnose(rootInput) {
   });
   for (const symlink of symlinks) issues.push({ severity: "error", code: "SYMLINK_PRESENT", path: symlink });
 
-  const runsRoot = path.join(root, "99_AI", "runs");
-  if (await exists(runsRoot)) {
+  const terminalStatuses = new Set(["completed", "applied", "undone", "failed", "cancelled"]);
+  const inspectRuns = async (runsRoot, runsRelative, expectedHost = null) => {
+    if (!(await exists(runsRoot))) return;
     const runs = await readdir(runsRoot, { withFileTypes: true });
-    const terminalStatuses = new Set(["completed", "applied", "undone", "failed", "cancelled"]);
     for (const run of runs.filter((item) => item.isDirectory())) {
       const taskPath = path.join(runsRoot, run.name, "task.json");
       const resultPath = path.join(runsRoot, run.name, "RESULT.md");
-      await assertNoSymlinkComponents(root, `99_AI/runs/${run.name}/task.json`);
-      await assertNoSymlinkComponents(root, `99_AI/runs/${run.name}/RESULT.md`);
+      const runRelative = `${runsRelative}/${run.name}`;
+      await assertNoSymlinkComponents(root, `${runRelative}/task.json`);
+      await assertNoSymlinkComponents(root, `${runRelative}/RESULT.md`);
       if (!(await exists(taskPath))) {
-        issues.push({ severity: "warning", code: "INCOMPLETE_RUN", run: run.name, missing: "task.json" });
+        issues.push({ severity: "warning", code: "INCOMPLETE_RUN", run: runRelative, missing: "task.json" });
         continue;
       }
       if (!(await exists(resultPath))) {
-        issues.push({ severity: "warning", code: "INCOMPLETE_RUN", run: run.name, missing: "RESULT.md" });
+        issues.push({ severity: "warning", code: "INCOMPLETE_RUN", run: runRelative, missing: "RESULT.md" });
         continue;
       }
       const task = await readJson(taskPath);
+      const migratedLegacyTask = expectedHost === "legacy" && task.schema === "pos.task.v1";
+      if (expectedHost && !migratedLegacyTask && (task.schema !== "pos.task.v2" || task.hostId !== expectedHost || task.run !== runRelative)) {
+        issues.push({ severity: "error", code: "RUN_HOST_MISMATCH", run: runRelative, expectedHost, actualHost: task.hostId ?? null });
+      }
       if (!terminalStatuses.has(task.status)) {
-        issues.push({ severity: "warning", code: "INCOMPLETE_RUN", run: run.name, status: task.status ?? "unknown" });
+        issues.push({ severity: "warning", code: "INCOMPLETE_RUN", run: runRelative, status: task.status ?? "unknown" });
       }
     }
+  };
+
+  if (modernWorkspace) {
+    const hostsRoot = path.join(root, "99_AI", "hosts");
+    if (await exists(hostsRoot)) {
+      const hosts = await readdir(hostsRoot, { withFileTypes: true });
+      for (const host of hosts.filter((item) => item.isDirectory())) {
+        let hostId;
+        try {
+          hostId = resolveHostId(host.name, {});
+        } catch {
+          issues.push({ severity: "error", code: "INVALID_HOST_WORKSPACE", path: `99_AI/hosts/${host.name}` });
+          continue;
+        }
+        if (hostId !== host.name) {
+          issues.push({ severity: "error", code: "INVALID_HOST_WORKSPACE", path: `99_AI/hosts/${host.name}`, canonicalHost: hostId });
+          continue;
+        }
+        const hostRelative = `99_AI/hosts/${hostId}`;
+        if (!(await exists(path.join(root, hostRelative, "CONTEXT.md")))) issues.push({ severity: "warning", code: "HOST_CONTEXT_MISSING", path: `${hostRelative}/CONTEXT.md` });
+        await inspectRuns(path.join(root, hostRelative, "runs"), `${hostRelative}/runs`, hostId);
+      }
+    }
+  } else {
+    await inspectRuns(path.join(root, "99_AI", "runs"), "99_AI/runs");
   }
 
   const lockPath = path.join(root, ".pos", "lock");

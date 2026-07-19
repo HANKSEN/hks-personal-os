@@ -1,170 +1,111 @@
-# 15-minute first run
+# 第一次使用：不学目录，也能开始
 
-This walkthrough creates and then safely undoes one Knowledge note. Use a brand-new empty directory; never substitute an existing knowledge base, PARA folder, Obsidian vault, or other personal system.
+[English](first-run.en.md) | 简体中文
 
-Before granting any Agent access to valuable files, create an independent full-directory backup or snapshot and verify that selected files can be restored. Personal OS Undo history, Git, and cloud sync are additional recovery layers, not replacements for a backup. Read [safety.md](safety.md) before continuing.
+这份指南面向从零开始的用户。你不需要先理解 PARA、Knowledge 或 Changeset；只要能说清楚“我现在想做什么”。
 
-In the examples, replace `/absolute/path/to/demo-pos` with one absolute path you control. Keep that same path throughout.
+## 1. 安装并选择“新建一套”
 
-## 1. Verify installation (1 minute)
-
-```bash
-pos help
-```
-
-Stop if this fails. Follow [install.md](install.md) before continuing.
-
-## 2. Initialize the empty root (1 minute)
+最简单的方法是把仓库链接交给 Agent，并让它读取 `AGENT_SETUP.md`。也可以运行：
 
 ```bash
-pos init /absolute/path/to/demo-pos --areas "示例领域"
-pos doctor /absolute/path/to/demo-pos
+npx --yes --package=github:HANKSEN/hks-personal-os personal-os setup --agent auto
 ```
 
-This uses the default `collaborative` mode. Do not choose `safe` or `trusted` for the first run: they are advanced policy modes, not beginner presets.
+安装后，Agent 会问：
 
-## 3. Add the minimum human context (3 minutes)
+> 你希望创建一套新的 Personal OS，还是整理已有目录？
 
-Open `/absolute/path/to/demo-pos/POS.md` and fill only these fields:
+选择“新建”。
 
-```markdown
-## Identity and current stage
+## 2. 只确认一个根目录
 
-- Role: 正在建立个人内容体系的创作者
-- Current stage: 初期验证
+Agent 会给出一个绝对路径，并告诉你它是“不存在”“空目录”“已初始化”还是“非空目录”。确认前检查：
 
-## Goals
+- 路径是你想要的位置；
+- 不要选择主目录或磁盘根；
+- 目录应该是全新或空的；
+- 如果目录已有文件，改走[已有目录整理](existing-directory.md)，不要强制初始化。
 
-- This year's focus: 稳定产出 AI 与个人成长内容
-- Current priority: 建立低维护成本的创作工作流
-```
+确认后，系统会先在同级临时目录完成初始化与健康检查，再原子提交到目标路径。失败时不会把半成品当成成功结果。
 
-Then open `/absolute/path/to/demo-pos/20_Areas/示例领域/CONTEXT.md` and fill:
-
-```markdown
-## Purpose
-
-通过可持续的学习与实践建立可复用的知识与方法。
-
-## AI collaboration
-
-- AI may: 澄清意图、检索相关上下文、在 99_AI 内起草、生成 Changeset
-- AI should propose before: 写入 Area 正式资产
-- AI must not: 未经预览与批准直接修改正式资产
-```
-
-Refresh the index:
-
-```bash
-pos index /absolute/path/to/demo-pos
-```
-
-## 4. Trigger the Skill in natural language (2 minutes)
-
-Start a new Codex task or Claude Code session and send this exact request:
+## 3. 初始化后你会得到什么
 
 ```text
-Use the personal-os Skill. My authorized Personal OS root is /absolute/path/to/demo-pos.
-I want to understand what a Personal OS is for later use. Ask at most one necessary clarification question, then route this as a Knowledge asset owned by the 示例领域 Area.
-Create an isolated run with the formal write scope limited to 20_Areas/示例领域/Knowledge/personal-os-basics.md. Draft only in the run's proposed directory, generate a Changeset, and stop after preview. Do not apply it for me.
+Personal_OS/
+├── START_HERE.md          # 随时可看的中文入门卡
+├── POS.md                 # 你的核心上下文与全局协作边界
+├── 00_Inbox/              # 不知道放哪里的输入与任务入口
+├── 10_Projects/           # 有完成条件的阶段性工作
+├── 20_Areas/              # 长期责任与正式个人资产
+├── 30_Resources/          # 已分类但尚未消化的外部资料
+├── 90_Archive/            # 已结束或不活跃内容
+├── 99_AI/                 # 按实际 Agent 宿主隔离的临时工作区
+│   ├── hosts/<host-id>/runs/<run-id>/
+│   ├── shared/handoffs/
+│   └── trash/
+└── .pos/                  # 索引、策略、历史和恢复信息
 ```
 
-The Skill/host LLM performs clarification and routing. The `pos` CLI does not interpret this natural language. The agent should invoke the equivalent deterministic command:
+可以跳过 Area 和个人化信息；这不会影响系统健康。以后遇到第一个真实任务时再创建，比一开始凭空设计一套分类更容易。
 
-```bash
-pos run /absolute/path/to/demo-pos \
-  --goal "形成一份 Personal OS 基础知识说明" \
-  --intent explore \
-  --area "示例领域" \
-  --agent research \
-  --write-scope "20_Areas/示例领域/Knowledge/personal-os-basics.md"
-```
+## 4. 用真实任务完成第一次使用
 
-Save the returned `taskId` and `run` path. They identify the review and undo boundary.
-
-## 5. Verify the proposal and Changeset (3 minutes)
-
-Inside `99_AI/runs/<task-id>/`, the agent should have:
-
-- drafted the note as `proposed/op-001.md`;
-- filled `CHANGESET.json` with one `create` operation;
-- kept both Task Card and Changeset `writeScope` equal to `20_Areas/示例领域/Knowledge/personal-os-basics.md`;
-- left the formal Area unchanged.
-
-The Changeset should have this shape:
-
-```json
-{
-  "schema": "pos.changeset.v1",
-  "taskId": "<task-id>",
-  "summary": "Create a reusable Personal OS basics note",
-  "writeScope": [
-    "20_Areas/示例领域/Knowledge/personal-os-basics.md"
-  ],
-  "operations": [
-    {
-      "id": "op-001",
-      "action": "create",
-      "path": "20_Areas/示例领域/Knowledge/personal-os-basics.md",
-      "source": "99_AI/runs/<task-id>/proposed/op-001.md",
-      "reason": "Persist the user-reviewed synthesis"
-    }
-  ]
-}
-```
-
-If the agent did not create these files, ask it to finish the proposal inside the same Run. There is intentionally no `pos generate` command: content and semantic placement come from the Skill/LLM.
-
-## 6. Preview, approve, and diagnose (3 minutes)
-
-Preview first; this does not change the formal Area:
-
-```bash
-pos apply /absolute/path/to/demo-pos 99_AI/runs/<task-id>/CHANGESET.json
-```
-
-Check that there is exactly one `create`, that its destination is the scoped Knowledge path, and that no Context or unrelated path is listed. Then apply explicitly:
-
-```bash
-pos apply /absolute/path/to/demo-pos 99_AI/runs/<task-id>/CHANGESET.json --yes
-pos doctor /absolute/path/to/demo-pos
-```
-
-Confirm that `20_Areas/示例领域/Knowledge/personal-os-basics.md` exists and `doctor` reports a healthy root.
-
-Return to the same Codex task or Claude Code session and say:
+从下面三种中任选一个：
 
 ```text
-The Changeset has been applied. Complete this Run's RESULT.md now: set status to applied, set undo_id to the task ID, record the context used and the one changed file, and ensure task.json and RESULT.md agree. Do not make any new formal change.
+把这篇长文当成一个新输入。先问我最多一个必要问题，
+弄清楚我是临时阅读、长期学习还是准备创作，再帮我路由和处理。
 ```
 
-Check the completed `RESULT.md` before closing the task. The CLI records deterministic transaction state; the Skill/host LLM completes the semantic result record.
-
-## 7. Test recovery with undo (2 minutes)
-
-Review `.pos/history/<task-id>/manifest.json`, then undo:
-
-```bash
-pos undo /absolute/path/to/demo-pos <task-id> --yes
-pos doctor /absolute/path/to/demo-pos
+```text
+我有一个困惑：____。我还不知道它应该属于哪个目录，
+请使用 personal-os Skill 帮我定义问题并开始。
 ```
 
-The Knowledge note should be removed because it did not exist before the apply, while the Run, history, and audit records remain. `--yes` is mandatory.
+```text
+我想完成____。请判断它是不是一个 Project，
+只读取必要上下文，在 AI 工作区起草，正式写入前先给我预览。
+```
 
-Return once more to the same Skill task and ask it to update the existing Run result to `undone`, retain the original outcome and changed-file history, and note that the formal file was restored to its pre-apply state. This keeps `task.json`, `RESULT.md`, and the user-facing result consistent.
+你不必先决定它是 Knowledge、Experience、Principles、Artifacts 还是 Data。Skill 会先理解真实目标，缺少关键信息时只追问会改变归属或交付物的问题。
 
-Do not add `--force` in this walkthrough. If later edits conflict with the stored after-state, normal undo stops to protect them. `--force` bypasses that check and can overwrite later work; it is only for an explicitly accepted recovery risk.
+## 5. 第一次只记住这条链路
 
-## Completion check
+```text
+表达意图 / 丢进 Inbox
+        ↓
+AI 澄清目标并选择 Area / Project
+        ↓
+只取回必要上下文，在当前 Agent 的 99_AI Host Run 内工作
+        ↓
+展示提案和正式文件变化
+        ↓
+你确认后才写入正式资产
+```
 
-The first run passes when all of these are true:
+如果提案不符合目标，直接让 Agent 修改，不要批准。涉及 `POS.md`、`CONTEXT.md`、价值观、目标或长期规则时，还需要额外确认。
 
-- the human supplied only compact root and Area context;
-- the Skill clarified/routed natural language without a full-directory scan;
-- `pos run` recorded a narrow explicit write scope;
-- the proposal stayed inside `99_AI/` until approval;
-- preview made no formal change;
-- apply created exactly the reviewed file;
-- `doctor` passed after apply and undo;
-- undo restored the pre-apply formal state without `--force`.
-- `task.json` and `RESULT.md` agree after both apply and undo.
+## 6. 五类资产只在完成时判断
+
+| 结果 | 去向 | 判断句 |
+|---|---|---|
+| 理解后的概念或模型 | `Knowledge` | “我现在理解了什么？” |
+| 一次有时间、行动和结果的经历 | `Experience` | “我做了什么，结果如何？” |
+| 有证据、值得反复使用的方法 | `Principles` | “下次还能怎样复用？” |
+| 完成或发布的文章、代码、Skill | `Artifacts` | “我已经创造了什么？” |
+| 平台导出、指标和测量值 | `Data` | “有哪些可核查事实？” |
+
+一篇发布文章是 Artifact；写文章时提炼的稳定 SOP 是 Principle；某次点击率实验及复盘是 Experience；平台导出的数据是 Data。
+
+## 7. 入门完成的验收标准
+
+你能回答下面五个问题，就已经可以开始长期使用：
+
+1. 不知道归属的输入从 `00_Inbox` 或自然语言请求开始；
+2. 有完成条件的工作进入 Project，长期责任由 Area 持有；
+3. AI 默认在 `99_AI/hosts/<host-id>/runs/` 内工作，不同 Agent 的临时产物不会混放，也不直接污染正式资产；
+4. 正式变化先预览，用户确认后写入；
+5. 出错时可看审计和 Undo，但真正有价值的文件仍必须有独立备份。
+
+之后只需持续说：“使用 personal-os Skill，帮我处理这件事。”

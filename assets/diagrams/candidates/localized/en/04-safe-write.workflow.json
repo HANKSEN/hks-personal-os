@@ -1,0 +1,309 @@
+{
+  "schema_version": 1,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Let AI collaborate boldly; commit carefully",
+    "subtitle": "Every change begins as a reviewable proposal, then a deterministic runtime applies and records it",
+    "output": "assets/diagrams/candidates/localized/en/04-safe-write.html",
+    "viewBox": [
+      720,
+      900
+    ]
+  },
+  "lanes": [
+    {
+      "id": "run",
+      "label": "Agent Run"
+    },
+    {
+      "id": "runtime",
+      "label": "Deterministic runtime"
+    },
+    {
+      "id": "human",
+      "label": "Human approval"
+    },
+    {
+      "id": "commit",
+      "label": "Formal write"
+    },
+    {
+      "id": "audit",
+      "label": "Audit trail"
+    },
+    {
+      "id": "exception",
+      "label": "Revise + undo",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "draft",
+      "label": "Draft + target path",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "verify",
+      "label": "Validate, then preview",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "decide",
+      "label": "Human decides",
+      "fromCol": 4,
+      "toCol": 4,
+      "variant": "security"
+    },
+    {
+      "id": "record",
+      "label": "Write + record",
+      "fromCol": 5,
+      "toCol": 5,
+      "variant": "dashed"
+    }
+  ],
+  "groups": [
+    {
+      "id": "proposal",
+      "label": "AI temporary space",
+      "lane": "run",
+      "fromCol": 0,
+      "toCol": 1,
+      "variant": "dashed"
+    },
+    {
+      "id": "deterministic",
+      "label": "Repeatable checks",
+      "lane": "runtime",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "approval_gate",
+      "label": "Visible risk",
+      "lane": "human",
+      "fromCol": 4,
+      "toCol": 4,
+      "variant": "security"
+    },
+    {
+      "id": "exception_path",
+      "label": "Stop or recover",
+      "lane": "exception",
+      "fromCol": 4,
+      "toCol": 5,
+      "variant": "security"
+    }
+  ],
+  "mainPath": [
+    "draft",
+    "changeset",
+    "validate",
+    "preview",
+    "approval",
+    "apply",
+    "audit"
+  ],
+  "nodes": [
+    {
+      "id": "draft",
+      "lane": "run",
+      "col": 0,
+      "type": "messagebus",
+      "label": "Draft",
+      "sublabel": "inside this Run"
+    },
+    {
+      "id": "changeset",
+      "lane": "run",
+      "col": 1,
+      "type": "cloud",
+      "label": "CHANGESET.json",
+      "sublabel": "action · target · reason",
+      "tag": "proposal"
+    },
+    {
+      "id": "validate",
+      "lane": "runtime",
+      "col": 2,
+      "type": "messagebus",
+      "label": "Schema Check",
+      "sublabel": "bounds · conflicts"
+    },
+    {
+      "id": "preview",
+      "lane": "runtime",
+      "col": 3,
+      "type": "frontend",
+      "label": "Diff Preview",
+      "sublabel": "impact first"
+    },
+    {
+      "id": "approval",
+      "lane": "human",
+      "col": 4,
+      "type": "security",
+      "label": "Approval",
+      "sublabel": "accept · revise",
+      "tag": "final call"
+    },
+    {
+      "id": "apply",
+      "lane": "commit",
+      "col": 5,
+      "type": "backend",
+      "label": "Apply",
+      "sublabel": "deterministic write"
+    },
+    {
+      "id": "audit",
+      "lane": "audit",
+      "col": 5,
+      "type": "database",
+      "label": "Audit + Undo",
+      "sublabel": "hashes + undo"
+    },
+    {
+      "id": "revise",
+      "lane": "exception",
+      "col": 4,
+      "type": "security",
+      "label": "Revise",
+      "sublabel": "no formal write"
+    },
+    {
+      "id": "rollback",
+      "lane": "exception",
+      "col": 5,
+      "type": "messagebus",
+      "label": "Rollback",
+      "sublabel": "safe conflict stop"
+    }
+  ],
+  "edges": [
+    {
+      "from": "draft",
+      "to": "changeset",
+      "variant": "default"
+    },
+    {
+      "from": "changeset",
+      "to": "validate",
+      "label": "submit proposal",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "drop",
+      "labelAt": [
+        260,
+        170
+      ]
+    },
+    {
+      "from": "validate",
+      "to": "preview",
+      "variant": "default"
+    },
+    {
+      "from": "preview",
+      "to": "approval",
+      "label": "show impact",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "drop",
+      "labelSegment": 1
+    },
+    {
+      "from": "approval",
+      "to": "apply",
+      "label": "approved",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "drop",
+      "labelAt": [
+        563,
+        418
+      ]
+    },
+    {
+      "from": "apply",
+      "to": "audit",
+      "label": "record",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "drop"
+    },
+    {
+      "from": "approval",
+      "to": "revise",
+      "label": "reject or revise",
+      "variant": "security",
+      "role": "error",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "drop",
+      "labelSegment": 1
+    },
+    {
+      "from": "revise",
+      "to": "draft",
+      "label": "back to Run; no formal write",
+      "variant": "security",
+      "role": "return",
+      "fromSide": "left",
+      "toSide": "left",
+      "route": "return-left",
+      "labelAt": [
+        150,
+        425
+      ]
+    },
+    {
+      "from": "audit",
+      "to": "rollback",
+      "label": "undo if needed",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "drop",
+      "labelSegment": 1
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Safe by default",
+      "items": [
+        "AI writes directly only inside a Run",
+        "No silent overwrite of durable assets",
+        "Delete, overwrite, and out-of-bounds paths are denied"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Human-readable",
+      "items": [
+        "Changeset explains what changes and why",
+        "Diff exposes the real impact before approval",
+        "Protected context requires explicit approval"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Recoverable",
+      "items": [
+        "Content hashes are recorded before and after Apply",
+        "External edits trigger conflict protection",
+        "Audit records and safe Undo remain available"
+      ]
+    }
+  ]
+}

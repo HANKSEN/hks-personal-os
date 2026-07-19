@@ -1,17 +1,28 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, readdir, realpath, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, realpath } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-
 import { PosError, invariant } from "./errors.mjs";
+import { AI_WORKSPACE_LAYOUT, initializeAIWorkspace, workspaceLayout } from "./ai-workspace.mjs";
 import { atomicWrite, ensureDir, exists, isoNow, readJson, writeJsonAtomic } from "./io.mjs";
 import { assertNoSymlinkComponents, assertRootNotSymlink, resolveInside, safeComponent } from "./safe-path.mjs";
 
 const CURRENT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_DIR = path.resolve(CURRENT_DIR, "..", "..", "assets", "templates");
-const AGENT_TEMPLATE_DIR = path.resolve(CURRENT_DIR, "..", "..", "assets", "agents");
 const ROOT_DIRS = [
+  "00_Inbox",
+  "10_Projects",
+  "20_Areas",
+  "30_Resources",
+  "90_Archive",
+  "99_AI/hosts",
+  "99_AI/shared/handoffs",
+  "99_AI/trash",
+  ".pos/history",
+  ".pos/transactions",
+];
+const LEGACY_ROOT_DIRS = [
   "00_Inbox",
   "10_Projects",
   "20_Areas",
@@ -62,6 +73,9 @@ export async function openRoot(rootInput) {
   invariant(await exists(markerPath), "ROOT_MARKER_MISSING", "Directory is not an initialized Personal OS root.", { root }, 3);
   const marker = await readJson(markerPath);
   invariant(marker?.schema === "pos.project.v1" && typeof marker.projectId === "string", "INVALID_ROOT_MARKER", "Invalid Personal OS root marker.", { root }, 3);
+  const aiPaths = workspaceLayout(marker) === AI_WORKSPACE_LAYOUT
+    ? ["99_AI/hosts", "99_AI/shared", "99_AI/trash"]
+    : ["99_AI/agents", "99_AI/runs", "99_AI/proposed", "99_AI/trash"];
   for (const relative of [
     ".pos/policy.json",
     ".pos/index.jsonl",
@@ -70,10 +84,7 @@ export async function openRoot(rootInput) {
     ".pos/history",
     ".pos/transactions",
     ".pos/lock",
-    "99_AI/agents",
-    "99_AI/runs",
-    "99_AI/proposed",
-    "99_AI/trash",
+    ...aiPaths,
   ]) {
     await assertNoSymlinkComponents(root, relative);
   }
@@ -100,12 +111,14 @@ export async function initializeRoot(rootInput, { areas = [], mode = "collaborat
   invariant(unexpected.length === 0, "NON_EMPTY_TARGET", "Initialization target must be empty. Existing systems are not taken over by v1.", { root, entries: unexpected }, 3);
 
   for (const directory of ROOT_DIRS) await ensureDir(resolveInside(root, directory));
+  await initializeAIWorkspace(root);
 
   const areaList = validatedAreas.length ? validatedAreas.map((area) => `- ${area}`).join("\n") : "- None yet";
   const rootContext = (await readTemplate("POS.md"))
     .replace("- Example Area", areaList)
     .replace("- Default mode: collaborative", `- Default mode: ${mode}`);
   await atomicWrite(path.join(root, "POS.md"), rootContext);
+  await atomicWrite(path.join(root, "START_HERE.md"), await readTemplate("START_HERE.md"));
   const policy = JSON.parse(await readTemplate("policy.json"));
   policy.mode = mode;
   await writeJsonAtomic(path.join(root, ".pos", "policy.json"), policy);
@@ -114,6 +127,7 @@ export async function initializeRoot(rootInput, { areas = [], mode = "collaborat
     projectId: randomUUID(),
     createdAt: isoNow(),
     version: 1,
+    aiWorkspaceLayout: AI_WORKSPACE_LAYOUT,
   };
   await writeJsonAtomic(path.join(root, ".pos", "project.json"), marker);
   await atomicWrite(path.join(root, ".pos", "index.jsonl"), "");
@@ -125,15 +139,6 @@ export async function initializeRoot(rootInput, { areas = [], mode = "collaborat
     sourceDigest: null,
   });
   await atomicWrite(path.join(root, ".pos", "audit.jsonl"), "");
-
-  const agents = await readdir(AGENT_TEMPLATE_DIR, { withFileTypes: true });
-  for (const agent of agents.filter((entry) => entry.isDirectory())) {
-    const manifest = path.join(AGENT_TEMPLATE_DIR, agent.name, "AGENT.md");
-    if (!(await exists(manifest))) continue;
-    const destination = path.join(root, "99_AI", "agents", agent.name, "AGENT.md");
-    await ensureDir(path.dirname(destination));
-    await atomicWrite(destination, await readFile(manifest, "utf8"));
-  }
 
   const areaTemplate = await readTemplate("AREA_CONTEXT.md");
   for (const area of validatedAreas) {
@@ -149,4 +154,4 @@ export async function initializeRoot(rootInput, { areas = [], mode = "collaborat
   return { root, marker, areas: validatedAreas, mode };
 }
 
-export { ROOT_DIRS };
+export { LEGACY_ROOT_DIRS, ROOT_DIRS };

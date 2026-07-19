@@ -15,7 +15,7 @@ A Changeset is the handoff between the LLM Skill and the deterministic CLI. The 
       "id": "op-001",
       "action": "create",
       "path": "20_Areas/示例领域/Experience/example.md",
-      "source": "99_AI/runs/task-id/proposed/op-001.md",
+      "source": "99_AI/hosts/codex/runs/task-id/proposed/op-001.md",
       "reason": "Record the time-bound result"
     }
   ]
@@ -51,8 +51,8 @@ Previewing a Changeset must not modify formal files, the index, or the audit log
 ## Apply and undo sequence
 
 ```bash
-pos apply /absolute/path/to/root 99_AI/runs/<task-id>/CHANGESET.json
-pos apply /absolute/path/to/root 99_AI/runs/<task-id>/CHANGESET.json --yes
+pos apply /absolute/path/to/root 99_AI/hosts/<host-id>/runs/<task-id>/CHANGESET.json
+pos apply /absolute/path/to/root 99_AI/hosts/<host-id>/runs/<task-id>/CHANGESET.json --yes
 pos doctor /absolute/path/to/root
 pos undo /absolute/path/to/root <task-id> --yes
 ```

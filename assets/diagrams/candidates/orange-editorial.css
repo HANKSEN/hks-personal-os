@@ -1,0 +1,129 @@
+:root,
+[data-theme="dark"] {
+  --bg: #1d140e;
+  --panel: #281a11;
+  --panel-border: #5c3825;
+  --panel-header: #21150e;
+  --text: #fff7eb;
+  --muted: #e1b99d;
+  --dim: #af8063;
+  --line: #6f452d;
+  --grid: rgba(255, 151, 72, 0.07);
+  --arrow: #d87538;
+  --arrow-emphasis: #ff6b1a;
+  --arrow-security: #ff4f3a;
+  --arrow-label: #ffd4b8;
+  --frontend-fill: #15273b;
+  --frontend-stroke: #5da8e8;
+  --frontend-glow: rgba(93, 168, 232, 0.12);
+  --backend-fill: #172b22;
+  --backend-stroke: #6cac7d;
+  --backend-glow: rgba(108, 172, 125, 0.12);
+  --database-fill: #2a203a;
+  --database-stroke: #aa82d7;
+  --database-glow: rgba(170, 130, 215, 0.12);
+  --cloud-fill: #352711;
+  --cloud-stroke: #f0aa2b;
+  --cloud-glow: rgba(240, 170, 43, 0.14);
+  --messagebus-fill: #351d10;
+  --messagebus-stroke: #ff782c;
+  --messagebus-glow: rgba(255, 120, 44, 0.14);
+  --security-fill: #351817;
+  --security-stroke: #f15c45;
+  --security-glow: rgba(241, 92, 69, 0.14);
+  --external-fill: #28231d;
+  --external-stroke: #d5bca4;
+  --external-glow: rgba(213, 188, 164, 0.09);
+}
+
+[data-theme="light"] {
+  --bg: #fbf5e9;
+  --panel: #fffaf1;
+  --panel-border: #d9c9b4;
+  --panel-header: #fff4df;
+  --text: #1b1815;
+  --muted: #725f50;
+  --dim: #927867;
+  --line: #d7c3aa;
+  --grid: rgba(230, 100, 22, 0.06);
+  --arrow: #bd7040;
+  --arrow-emphasis: #f26322;
+  --arrow-security: #dc4c35;
+  --arrow-label: #57392a;
+  --frontend-fill: #eef6fc;
+  --frontend-stroke: #397bb6;
+  --frontend-glow: rgba(57, 123, 182, 0.09);
+  --backend-fill: #eef7ed;
+  --backend-stroke: #5a9163;
+  --backend-glow: rgba(90, 145, 99, 0.10);
+  --database-fill: #f4effb;
+  --database-stroke: #8b64b8;
+  --database-glow: rgba(139, 100, 184, 0.10);
+  --cloud-fill: #fff4d6;
+  --cloud-stroke: #d99411;
+  --cloud-glow: rgba(217, 148, 17, 0.12);
+  --messagebus-fill: #fff0e5;
+  --messagebus-stroke: #ef6a24;
+  --messagebus-glow: rgba(239, 106, 36, 0.12);
+  --security-fill: #fff0eb;
+  --security-stroke: #d94d36;
+  --security-glow: rgba(217, 77, 54, 0.11);
+  --external-fill: #fffdf8;
+  --external-stroke: #a9917b;
+  --external-glow: rgba(169, 145, 123, 0.08);
+}
+
+body {
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(circle at 18% 7%, rgba(255, 113, 28, 0.08), transparent 27rem),
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: auto, 30px 30px, 30px 30px;
+}
+
+h1 {
+  letter-spacing: -0.045em;
+  position: relative;
+  width: fit-content;
+  z-index: 0;
+}
+
+h1::after {
+  background: rgba(255, 183, 39, 0.48);
+  border-radius: 999px;
+  bottom: 0.05em;
+  content: "";
+  height: 0.28em;
+  left: 28%;
+  position: absolute;
+  transform: rotate(-1.2deg);
+  width: 64%;
+  z-index: -1;
+}
+
+.diagram-wrap,
+.card,
+.theme-toggle,
+.export-btn,
+.export-menu {
+  border-radius: 14px;
+  box-shadow: 0 10px 28px rgba(84, 47, 24, 0.08);
+}
+
+.diagram-wrap {
+  border-color: var(--panel-border);
+}
+
+.card {
+  background-image: linear-gradient(150deg, rgba(255, 255, 255, 0.025), transparent 48%);
+}
+
+.pulse-dot {
+  background: var(--arrow-emphasis);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--arrow-emphasis) 60%, transparent);
+}
+
+svg text {
+  font-family: Inter, "SF Pro Display", "PingFang SC", "Microsoft YaHei", sans-serif;
+}

@@ -9,7 +9,7 @@ import { openRoot } from "./root.mjs";
 import { matchesAny, walkSafe } from "./safe-path.mjs";
 
 const INDEXABLE = new Set([".md", ".txt", ".json", ".jsonl", ".yaml", ".yml", ".csv"]);
-const FIXED_SKIP_DIRS = new Set([".git", ".pos", "node_modules", "99_AI/runs", "99_AI/trash"]);
+const FIXED_SKIP_DIRS = new Set([".git", ".pos", "node_modules", "99_AI"]);
 
 function skipPath(policy, relative, entry) {
   if (FIXED_SKIP_DIRS.has(relative)) return true;

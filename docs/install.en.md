@@ -1,121 +1,95 @@
-# Install Personal OS
+# Install and initialize Hks Personal OS
 
-English | [简体中文](install.md)
+[简体中文](install.md) | English
 
-## Safety boundary first
+The default is **Skill-first**. The Skill package contains the deterministic local runtime used for initialization, indexing, Changesets, Doctor, Undo, read-only audit, and copy migration. A global `pos` CLI is optional and is not required for normal use.
 
-The installer installs the Personal OS software and Skill only. It does not back up, initialize, read, migrate, or organize a personal data root.
-
-Before granting an Agent access to valuable files, create a complete independent backup, keep it outside the source directory, restore-test selected files, and read [the safety and disclaimer guide](safety.en.md). Changesets, Undo, Git, and cloud version history are not substitutes for a backup.
+> [!WARNING]
+> Software installation does not authorize access to personal files. Before any Agent reads a valuable existing directory, create an independent full backup and restore-test it. See [Safety and disclaimer](safety.en.md).
 
 ## Requirements
 
-- Node.js 20 or later with npm/npx;
-- a local Agent with filesystem, terminal, and Skill/instruction-file support;
-- macOS or Linux. Windows remains a portability target until independent CI validation is added.
+- Node.js 20 or later;
+- a local Agent that can read a Skill and execute local Node.js files;
+- no `sudo` and no runtime npm dependencies.
 
-Installation uses no `sudo`. Defaults:
+## Recommended: give the GitHub URL to your Agent
 
-```text
-Software: ~/.local/share/personal-os/versions/<version>/
-Commands: ~/.local/bin/
-```
-
-The installer refuses unrelated existing files, commands, links, or Skill directories.
-
-## Give the GitHub URL to an Agent
-
-Send the repository URL and this request:
+Send the repository URL and this request to Codex, Claude Code, WorkBuddy, QCode, Kimi, or another local Agent:
 
 ```text
-Open this repository and read AGENT_INSTALL.md. Check Node.js and the Skill directory your host actually supports. Use dry-run to show every destination, wait for my confirmation, then install and verify pos help. Do not initialize, read, or migrate a personal data directory.
+Open https://github.com/HANKSEN/hks-personal-os and read AGENT_SETUP.md completely.
+Install and initialize Hks Personal OS according to its safety boundaries.
+Install the Skill only by default; do not install a global CLI.
+After installation, continue by asking whether I want a new system or a read-only audit of an existing directory.
+Before each permission boundary changes, show the exact paths and access mode and wait for confirmation.
 ```
 
-The Agent must follow [AGENT_INSTALL.md](../AGENT_INSTALL.md), preview all paths, and request confirmation before installation. Software-install authorization does not authorize access to personal content.
+The Agent should continue through installation, workspace choice, initialization or backup-gated read-only audit, health verification, and one optional real first task. Installation, initialization, source reading, copy migration, and formal Changeset apply are separate authorizations.
 
-## One command from GitHub
-
-Run directly from GitHub:
+## One interactive command
 
 ```bash
-npx --yes --package=github:HANKSEN/hks-personal-os personal-os --agent auto --yes
+npx --yes --package=github:HANKSEN/hks-personal-os personal-os setup --agent auto
 ```
 
-Preview without applying:
+The interactive setup asks for installation approval, journey, and exact workspace path. By default it installs a versioned package and Skill entry, but no global CLI and no PATH change.
+
+No-write structured preview:
 
 ```bash
-npx --yes --package=github:HANKSEN/hks-personal-os personal-os --agent auto --dry-run --json
+npx --yes --package=github:HANKSEN/hks-personal-os personal-os setup \
+  --agent auto --dry-run --json
 ```
 
-Explicit targets:
+## Agent and machine mode
+
+Agents can consume the stable `personal-os.setup.v1` response and continue from `state`, `pendingAuthorization`, and `nextAction`:
 
 ```bash
-# Codex
-npx --yes --package=github:HANKSEN/hks-personal-os personal-os --agent codex --yes
-
-# Claude Code
-npx --yes --package=github:HANKSEN/hks-personal-os personal-os --agent claude --yes
-
-# A host with a documented custom Skill parent
-npx --yes --package=github:HANKSEN/hks-personal-os personal-os --agent none --skill-dir "/real/skills/parent" --yes
+node scripts/install.mjs setup \
+  --agent codex --yes \
+  --workspace-mode new \
+  --root "/absolute/path/to/Personal_OS" \
+  --json
 ```
 
-## Install from a local clone
-
-```bash
-cd /absolute/path/to/personal-os
-./install.sh --agent auto --dry-run
-./install.sh --agent auto --yes
-```
-
-The installer copies the runtime package into versioned user-owned storage, links `pos` and `personal-os`, and links the Skill into selected targets. It runs no npm lifecycle script and has no runtime npm dependency.
+This stops before root mutation. Add `--initialize` only after the user confirms that exact missing or empty path. `--areas "Creation,Tool Development"` is optional.
 
 ## Agent targets
 
-```text
-auto     ~/.agents/skills plus detected ~/.codex and ~/.claude
-generic  ~/.agents/skills/personal-os
-codex    ~/.codex/skills/personal-os
-claude   ~/.claude/skills/personal-os
-none     CLI only, unless --skill-dir is supplied
-```
+| Host | Option | Default Skill path |
+|---|---|---|
+| Auto | `--agent auto` | Generic, plus detected Codex/Claude locations |
+| Generic Agents Skills | `--agent generic` | `~/.agents/skills/personal-os` |
+| Codex | `--agent codex` | `~/.codex/skills/personal-os` |
+| Claude Code | `--agent claude` | `~/.claude/skills/personal-os` |
+| Explicit custom host | `--agent none --skill-dir <parent>` | User- or host-provided path |
 
-For WorkBuddy, QCode, Kimi, or another host, obtain the real supported Skill parent from its documentation, settings, or the host Agent, then use `--skill-dir`. Personal OS never guesses an undocumented product path. The shared Agents Skills directory is an interoperability option, not a discovery guarantee.
+Personal OS never guesses undocumented WorkBuddy, QCode, Kimi, or other host paths. When native discovery is unavailable, an Agent may explicitly read the installed `SKILL.md` and invoke the packaged `scripts/pos.mjs`; report this as compatibility mode.
 
-Repeat `--skill-dir` to install into multiple explicitly supported parents.
+## Optional global CLI
 
-## PATH
-
-If the result reports that `~/.local/bin` is not on `PATH`, add it to the relevant shell configuration:
+Install CLI links only for terminal, scripting, CI, or troubleshooting:
 
 ```bash
-export PATH="$HOME/.local/bin:$PATH"
+npx --yes --package=github:HANKSEN/hks-personal-os personal-os setup \
+  --agent auto --with-cli
 ```
 
-Open a new terminal and verify:
+This adds `pos` and `personal-os` links. It does not grant access to a personal data directory.
+
+## Local repository and install-only
 
 ```bash
-command -v pos
-pos help
+./install.sh setup --agent auto
+./install.sh setup --agent auto --install-only
 ```
 
-An Agent may use the returned absolute binary path for verification but should not edit shell configuration without approval.
+The second command intentionally stops after software verification.
 
-## Verify and begin
+## Successful result
 
-Confirm the reported Skill destination contains `SKILL.md`, then restart or open a new Agent session. Do not automatically scan or adopt an existing data directory.
+Expect the result to include installed version, Skill paths, `embeddedRuntime`, default `globalCliInstalled: false`, and—after initialization—`health.healthy: true` plus `START_HERE.md`. Some hosts require a new Agent session to discover a newly installed Skill.
 
-Read [the 15-minute first run](first-run.md), select a new or empty target, and initialize explicitly:
-
-```bash
-pos init /absolute/path/to/new-personal-os --areas "Learning,Work"
-pos doctor /absolute/path/to/new-personal-os
-```
-
-If old material will be used later, back it up first and manually copy a small selected batch into the new root's `00_Inbox`. v1.0 does not perform in-place migration.
-
-## Conflicts and removal
-
-The installer reuses the same managed version and may repoint managed links from an older version while retaining the old directory. It refuses ordinary files, unrelated links, unmarked version directories, and existing ordinary Skill directories.
-
-Do not solve collisions or uninstall with broad recursive deletion. Inspect the exact reported links, preview removals, preserve version directories until rollback is unnecessary, and never touch a Personal OS data root as part of software removal.
+The installer refuses unrelated collisions, reuses a valid same-version package, and never removes a Personal OS data root. Existing users should follow the previewable, rollback-capable [update guide](update.en.md) and `AGENT_UPDATE.md` instead of overwriting an installed version. Continue with the [first-use guide](first-run.en.md) or the [existing-directory guide](existing-directory.en.md).

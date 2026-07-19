@@ -1,0 +1,279 @@
+{
+  "schema_version": 1,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "From one request to reusable assets",
+    "subtitle": "Hks Personal OS core loop · You state the goal; AI routes, collaborates, and proposes",
+    "output": "assets/diagrams/candidates/localized/en/01-personal-os-core-loop.html",
+    "viewBox": [
+      720,
+      760
+    ]
+  },
+  "lanes": [
+    {
+      "id": "intake",
+      "label": "Single entry"
+    },
+    {
+      "id": "understand",
+      "label": "Clarify + route"
+    },
+    {
+      "id": "workspace",
+      "label": "Isolated Agent workspace"
+    },
+    {
+      "id": "governance",
+      "label": "Human decision"
+    },
+    {
+      "id": "durable",
+      "label": "Durable assets"
+    }
+  ],
+  "phases": [
+    {
+      "id": "capture",
+      "label": "Capture first",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "understanding",
+      "label": "Clarify + retrieve",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "collaboration",
+      "label": "Draft, approve, preserve",
+      "fromCol": 4,
+      "toCol": 5,
+      "variant": "dashed"
+    }
+  ],
+  "groups": [
+    {
+      "id": "route_loop",
+      "label": "Minimum clarification",
+      "lane": "understand",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "run_space",
+      "label": "AI temporary work",
+      "lane": "workspace",
+      "fromCol": 4,
+      "toCol": 5,
+      "variant": "dashed"
+    },
+    {
+      "id": "approval_space",
+      "label": "Protected write boundary",
+      "lane": "governance",
+      "fromCol": 4,
+      "toCol": 5,
+      "variant": "security"
+    }
+  ],
+  "mainPath": [
+    "intent",
+    "inbox",
+    "router",
+    "context",
+    "run",
+    "proposal",
+    "approval",
+    "assets"
+  ],
+  "nodes": [
+    {
+      "id": "intent",
+      "lane": "intake",
+      "col": 0,
+      "type": "external",
+      "label": "Input / files",
+      "sublabel": "goal, not folder"
+    },
+    {
+      "id": "inbox",
+      "lane": "intake",
+      "col": 1,
+      "type": "messagebus",
+      "label": "00_Inbox",
+      "sublabel": "single entry",
+      "tag": "low friction"
+    },
+    {
+      "id": "router",
+      "lane": "understand",
+      "col": 2,
+      "type": "messagebus",
+      "label": "Intent check",
+      "sublabel": "ask only if unclear"
+    },
+    {
+      "id": "context",
+      "lane": "understand",
+      "col": 3,
+      "type": "cloud",
+      "label": "Context",
+      "sublabel": "related assets",
+      "tag": "bounded context"
+    },
+    {
+      "id": "run",
+      "lane": "workspace",
+      "col": 4,
+      "type": "messagebus",
+      "label": "Isolated Run",
+      "sublabel": "work · proposed · logs",
+      "tag": "temporary"
+    },
+    {
+      "id": "proposal",
+      "lane": "workspace",
+      "col": 5,
+      "type": "cloud",
+      "label": "Proposal",
+      "sublabel": "path + scope"
+    },
+    {
+      "id": "approval",
+      "lane": "governance",
+      "col": 5,
+      "type": "security",
+      "label": "Approval",
+      "sublabel": "accept · revise",
+      "tag": "final call"
+    },
+    {
+      "id": "assets",
+      "lane": "durable",
+      "col": 5,
+      "type": "backend",
+      "label": "Assets",
+      "sublabel": "PARA + type",
+      "tag": "approved only"
+    }
+  ],
+  "edges": [
+    {
+      "from": "intent",
+      "to": "inbox",
+      "variant": "emphasis"
+    },
+    {
+      "from": "inbox",
+      "to": "router",
+      "label": "real goal?",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "drop",
+      "labelAt": [
+        260,
+        170
+      ]
+    },
+    {
+      "from": "router",
+      "to": "context",
+      "variant": "default"
+    },
+    {
+      "from": "context",
+      "to": "run",
+      "label": "only what is needed",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "drop",
+      "labelAt": [
+        465,
+        294
+      ]
+    },
+    {
+      "from": "run",
+      "to": "proposal",
+      "variant": "default"
+    },
+    {
+      "from": "proposal",
+      "to": "approval",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "drop"
+    },
+    {
+      "from": "approval",
+      "to": "assets",
+      "label": "approved write",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "drop",
+      "labelAt": [
+        625,
+        542
+      ]
+    },
+    {
+      "from": "approval",
+      "to": "run",
+      "label": "not approved: revise",
+      "variant": "security",
+      "role": "error",
+      "fromSide": "left",
+      "toSide": "left",
+      "route": "return-left"
+    },
+    {
+      "from": "assets",
+      "to": "context",
+      "label": "reuse on demand",
+      "variant": "dashed",
+      "role": "return",
+      "fromSide": "right",
+      "toSide": "right",
+      "route": "outside-right",
+      "width": 1.2
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Single entry",
+      "items": [
+        "Say what you want or drop in a file",
+        "No PARA or asset taxonomy required",
+        "Ask only when routing information is missing"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Two guardrails",
+      "items": [
+        "AI writes freely inside its own Run",
+        "Durable writes arrive as a Changeset",
+        "Human approval remains the final gate"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Compounding output",
+      "items": [
+        "Knowledge: what I understand",
+        "Experience: what happened when I acted",
+        "Principles: what should guide the next action",
+        "Artifacts + Data: outputs and verifiable evidence"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,279 @@
+{
+  "cards" : [
+    {
+      "dot" : "cyan",
+      "items" : [
+        "使用者只需說想做什麼或丟入檔案",
+        "不要求先理解 PARA 或資產類型",
+        "不清晰時再進行最少必要追問"
+      ],
+      "title" : "統一入口"
+    },
+    {
+      "dot" : "rose",
+      "items" : [
+        "AI 在自己的 Run 內自由生成臨時產物",
+        "正式資產通過 Changeset 申請寫入",
+        "人的確認始終是最後一道門"
+      ],
+      "title" : "兩條邊界"
+    },
+    {
+      "dot" : "emerald",
+      "items" : [
+        "Knowledge：我理解了什麼",
+        "Experience：我經歷了什麼",
+        "Principles：下次如何做得更好",
+        "Artifacts + Data：產物與事實證據"
+      ],
+      "title" : "復利結果"
+    }
+  ],
+  "diagram_type" : "workflow",
+  "edges" : [
+    {
+      "from" : "intent",
+      "to" : "inbox",
+      "variant" : "emphasis"
+    },
+    {
+      "from" : "inbox",
+      "fromSide" : "bottom",
+      "label" : "真實目標？",
+      "labelAt" : [
+        260,
+        170
+      ],
+      "route" : "drop",
+      "to" : "router",
+      "toSide" : "top",
+      "variant" : "emphasis"
+    },
+    {
+      "from" : "router",
+      "to" : "context",
+      "variant" : "default"
+    },
+    {
+      "from" : "context",
+      "fromSide" : "bottom",
+      "label" : "只加載必要資訊",
+      "labelAt" : [
+        465,
+        294
+      ],
+      "route" : "drop",
+      "to" : "run",
+      "toSide" : "top",
+      "variant" : "dashed"
+    },
+    {
+      "from" : "run",
+      "to" : "proposal",
+      "variant" : "default"
+    },
+    {
+      "from" : "proposal",
+      "fromSide" : "bottom",
+      "route" : "drop",
+      "to" : "approval",
+      "toSide" : "top",
+      "variant" : "security"
+    },
+    {
+      "from" : "approval",
+      "fromSide" : "bottom",
+      "label" : "確認寫入",
+      "labelAt" : [
+        625,
+        542
+      ],
+      "route" : "drop",
+      "to" : "assets",
+      "toSide" : "top",
+      "variant" : "emphasis"
+    },
+    {
+      "from" : "approval",
+      "fromSide" : "left",
+      "label" : "未確認：回到草稿",
+      "role" : "error",
+      "route" : "return-left",
+      "to" : "run",
+      "toSide" : "left",
+      "variant" : "security"
+    },
+    {
+      "from" : "assets",
+      "fromSide" : "right",
+      "label" : "下次按需復用",
+      "role" : "return",
+      "route" : "outside-right",
+      "to" : "context",
+      "toSide" : "right",
+      "variant" : "dashed",
+      "width" : 1.2
+    }
+  ],
+  "groups" : [
+    {
+      "fromCol" : 2,
+      "id" : "route_loop",
+      "label" : "最少必要澄清",
+      "lane" : "understand",
+      "toCol" : 3,
+      "variant" : "emphasis"
+    },
+    {
+      "fromCol" : 4,
+      "id" : "run_space",
+      "label" : "AI 可自由工作的臨時空間",
+      "lane" : "workspace",
+      "toCol" : 5,
+      "variant" : "dashed"
+    },
+    {
+      "fromCol" : 4,
+      "id" : "approval_space",
+      "label" : "核心資產寫入邊界",
+      "lane" : "governance",
+      "toCol" : 5,
+      "variant" : "security"
+    }
+  ],
+  "lanes" : [
+    {
+      "id" : "intake",
+      "label" : "統一入口"
+    },
+    {
+      "id" : "understand",
+      "label" : "理解與路由"
+    },
+    {
+      "id" : "workspace",
+      "label" : "Agent 隔離工作區"
+    },
+    {
+      "id" : "governance",
+      "label" : "人的最終決定"
+    },
+    {
+      "id" : "durable",
+      "label" : "正式資產"
+    }
+  ],
+  "mainPath" : [
+    "intent",
+    "inbox",
+    "router",
+    "context",
+    "run",
+    "proposal",
+    "approval",
+    "assets"
+  ],
+  "meta" : {
+    "output" : "assets/diagrams/candidates/01-personal-os-core-loop.html",
+    "subtitle" : "Hks Personal OS 核心閉環 · 人只表達目標，AI 負責路由、協作與提案",
+    "title" : "從一句話到可復用資產",
+    "viewBox" : [
+      720,
+      760
+    ]
+  },
+  "nodes" : [
+    {
+      "col" : 0,
+      "id" : "intent",
+      "label" : "輸入 / 檔案",
+      "lane" : "intake",
+      "sublabel" : "說目標，不先分類",
+      "type" : "external"
+    },
+    {
+      "col" : 1,
+      "id" : "inbox",
+      "label" : "00_Inbox",
+      "lane" : "intake",
+      "sublabel" : "唯一入口",
+      "tag" : "low friction",
+      "type" : "messagebus"
+    },
+    {
+      "col" : 2,
+      "id" : "router",
+      "label" : "意圖澄清",
+      "lane" : "understand",
+      "sublabel" : "必要時只追問 1–3 個問題",
+      "type" : "messagebus"
+    },
+    {
+      "col" : 3,
+      "id" : "context",
+      "label" : "按需上下文",
+      "lane" : "understand",
+      "sublabel" : "Area + Project + 相關資產",
+      "tag" : "bounded context",
+      "type" : "cloud"
+    },
+    {
+      "col" : 4,
+      "id" : "run",
+      "label" : "Host 隔離 Run",
+      "lane" : "workspace",
+      "sublabel" : "work · proposed · logs",
+      "tag" : "臨時區",
+      "type" : "messagebus"
+    },
+    {
+      "col" : 5,
+      "id" : "proposal",
+      "label" : "寫入提案",
+      "lane" : "workspace",
+      "sublabel" : "Changeset：路徑與範圍",
+      "type" : "cloud"
+    },
+    {
+      "col" : 5,
+      "id" : "approval",
+      "label" : "人工確認",
+      "lane" : "governance",
+      "sublabel" : "接受、修改或退回",
+      "tag" : "final call",
+      "type" : "security"
+    },
+    {
+      "col" : 5,
+      "id" : "assets",
+      "label" : "正式資產",
+      "lane" : "durable",
+      "sublabel" : "PARA 歸屬 + 資產類型",
+      "tag" : "approved only",
+      "type" : "backend"
+    }
+  ],
+  "phases" : [
+    {
+      "fromCol" : 0,
+      "id" : "capture",
+      "label" : "先接住，不要求使用者分類",
+      "toCol" : 1
+    },
+    {
+      "fromCol" : 2,
+      "id" : "understanding",
+      "label" : "明確目標，只取必要上下文",
+      "toCol" : 3,
+      "variant" : "emphasis"
+    },
+    {
+      "fromCol" : 4,
+      "id" : "collaboration",
+      "label" : "隔離協作，經確認後沈澱",
+      "toCol" : 5,
+      "variant" : "dashed"
+    }
+  ],
+  "schema_version" : 1
+}

@@ -1,5 +1,7 @@
 ---
-schema: pos.task.v1
+schema: pos.task.v2
+host_id:
+role_id:
 id:
 status: created
 intent:

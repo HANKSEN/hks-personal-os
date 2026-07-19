@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.1.0 (2026-07-19)
+
+- Make setup Skill-first: the versioned Skill package includes the deterministic runtime, while global `pos` / `personal-os` links are installed only with `--with-cli` or the legacy compatibility entry.
+- Add a resumable `personal-os.setup.v1` journey that continues from software installation into new-root or existing-directory onboarding with separate authorization gates.
+- Add staged new-root initialization, `START_HERE.md`, health verification, and a first-real-task handoff for beginner use.
+- Add read-only existing-directory audit, lifecycle/duplicate/conflict findings, six migration reports, and reviewed copy-to-new-root migration with hash and provenance verification.
+- Publish a curated design-foundation layer and accepted RFCs without exposing internal Specs, personal context, raw conversations, or private roadmap material.
+- Add source-to-principle-to-rule-to-test provenance for PARA, Agent Skills, context files, prompt-injection controls, and the project's original extensions.
+- Change new-version software licensing to AGPL-3.0-or-later and original explanatory documentation to CC BY-SA 4.0, with a separate commercial-license path.
+- Preserve the irrevocable MIT terms for the previously published v1.0.0 tag and clarify that user-created Personal OS content is not automatically covered by project licenses.
+- Require a separate contributor agreement before merging substantive third-party contributions so commercial relicensing remains possible.
+- Keep `SKILL.md` frontmatter to the Codex-compatible `name` and `description` fields; repository-level files define the license scope.
+- Add target-release-driven, Skill-first software updates with SHA-256 package manifests, immutable version directories, software-only install state, preview and approval gates, atomic managed-link switching, and automatic link restoration on failure.
+- Add rollback to an already installed version while retaining the explicit boundary that software rollback never discovers or reverses Personal OS data.
+- Add `AGENT_UPDATE.md`, bilingual update guides, and isolated upgrade, rollback, tamper, privacy, CLI-preservation, and transaction-failure tests.
+- Isolate temporary AI work by the actual Agent Host under `99_AI/hosts/<host-id>/runs/`; keep `research / creator / builder / reviewer` as Skill Role Profiles rather than physical user-data directories.
+- Add explicit cross-host handoffs, task v2 Host/Role provenance, nested Doctor checks, and complete `99_AI` exclusion from durable-asset retrieval.
+- Add preview-first `workspace-upgrade` for existing data roots, conservatively mapping unknown historical Runs to `legacy`, preserving old Apply/Undo history, refusing conflicts, and restoring data after transaction failure.
+
 ## 1.0.0
 
 - Publish the first stable Hks Personal OS release.

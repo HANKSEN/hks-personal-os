@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { open, readFile, rename, rm } from "node:fs/promises";
 import path from "node:path";
 
+import { runLocationFromRelative } from "./ai-workspace.mjs";
 import { PosError, invariant } from "./errors.mjs";
 import {
   appendJsonl,
@@ -16,6 +17,7 @@ import {
   lstatMaybe,
   readJson,
   removePath,
+  sha256Data,
   sha256File,
   sha256Text,
   writeJsonAtomic,
@@ -26,14 +28,14 @@ import { openRoot } from "./root.mjs";
 import { assertNoSymlinkComponents, matchesAny, normalizeRelative, resolveInside, safeComponent } from "./safe-path.mjs";
 
 const ACTIONS = new Set(["create", "update", "move", "archive", "trash"]);
-const MAX_CONTENT_BYTES = 5 * 1024 * 1024;
+const MAX_CONTENT_BYTES = 32 * 1024 * 1024;
 
 function relativeChangesetPath(root, input) {
   const absolute = path.isAbsolute(input) ? path.resolve(input) : resolveInside(root, input);
   const relative = path.relative(root, absolute).split(path.sep).join("/");
   invariant(relative && !relative.startsWith("../") && !path.isAbsolute(relative), "CHANGESET_OUTSIDE_ROOT", "Changeset file must be inside the Personal OS root.", { input }, 3);
   const normalized = normalizeRelative(relative);
-  invariant(matchesAny(normalized, ["99_AI/runs/**", "99_AI/proposed/**"]), "CHANGESET_LOCATION_REJECTED", "Changeset must live in the AI workspace.", { path: normalized }, 3);
+  invariant(matchesAny(normalized, ["99_AI/hosts/*/runs/**", "99_AI/runs/**"]), "CHANGESET_LOCATION_REJECTED", "Changeset must live inside an AI Run.", { path: normalized }, 3);
   return { absolute, relative: normalized };
 }
 
@@ -201,23 +203,31 @@ function diffText(before, after, label) {
   return [`--- ${label}`, `+++ ${label}`, `@@ line ${prefix + 1} @@`, ...removed, ...added].join("\n");
 }
 
-async function loadContent(root, taskId, operation) {
+function textContent(buffer) {
+  if (!Buffer.isBuffer(buffer)) return String(buffer);
+  if (buffer.includes(0)) return null;
+  const text = buffer.toString("utf8");
+  if (text.includes("\uFFFD")) return null;
+  return text;
+}
+
+async function loadContent(root, runRelative, operation) {
   const hasInline = Object.hasOwn(operation, "content");
   const hasSource = typeof operation.source === "string" && operation.source.length > 0;
   invariant(hasInline !== hasSource, "INVALID_OPERATION_CONTENT", "Create/update requires exactly one of content or source.", { operation: operation.id }, 2);
   if (hasInline) {
     const content = String(operation.content);
     invariant(Buffer.byteLength(content) <= MAX_CONTENT_BYTES, "CONTENT_TOO_LARGE", "Proposed content exceeds the v1 size limit.", { operation: operation.id }, 2);
-    return content;
+    return Buffer.from(content, "utf8");
   }
   const source = normalizeRelative(operation.source);
-  invariant(source.startsWith(`99_AI/runs/${taskId}/proposed/`), "INVALID_PROPOSAL_SOURCE", "Proposed content must be inside the current Run's proposed directory.", { source }, 3);
+  invariant(source.startsWith(`${runRelative}/proposed/`), "INVALID_PROPOSAL_SOURCE", "Proposed content must be inside the current Run's proposed directory.", { source, run: runRelative }, 3);
   await assertNoSymlinkComponents(root, source);
   const absolute = resolveInside(root, source);
   const info = await lstatMaybe(absolute);
   invariant(info?.isFile(), "PROPOSAL_SOURCE_MISSING", "Proposed content file does not exist or is not a regular file.", { source }, 3);
   invariant(info.size <= MAX_CONTENT_BYTES, "CONTENT_TOO_LARGE", "Proposed content exceeds the v1 size limit.", { source }, 2);
-  return readFile(absolute, "utf8");
+  return readFile(absolute);
 }
 
 export async function planChangeset(rootInput, changesetInput) {
@@ -228,15 +238,19 @@ export async function planChangeset(rootInput, changesetInput) {
   const changeset = await readJson(changesetPath.absolute);
   invariant(changeset?.schema === "pos.changeset.v1", "INVALID_CHANGESET", "Unsupported Changeset schema.", { schema: changeset?.schema }, 2);
   const taskId = safeComponent(changeset.taskId, "Task ID");
-  invariant(changesetPath.relative.startsWith(`99_AI/runs/${taskId}/`), "CHANGESET_TASK_LOCATION_MISMATCH", "Changeset must live inside the AI Run it references.", { taskId, path: changesetPath.relative }, 3);
+  const runLocation = runLocationFromRelative(changesetPath.relative, taskId);
+  invariant(changesetPath.relative.startsWith(`${runLocation.runRelative}/`), "CHANGESET_TASK_LOCATION_MISMATCH", "Changeset must live inside the AI Run it references.", { taskId, path: changesetPath.relative }, 3);
   const writeScope = Array.isArray(changeset.writeScope) ? changeset.writeScope.map((item) => normalizeRelative(String(item), { allowEmpty: true })) : [];
   invariant(writeScope.length > 0, "WRITE_SCOPE_REQUIRED", "Changeset must declare a write scope.", undefined, 2);
-  const taskRelative = `99_AI/runs/${taskId}/task.json`;
+  const taskRelative = `${runLocation.runRelative}/task.json`;
   await assertNoSymlinkComponents(root, taskRelative);
   const taskPath = resolveInside(root, taskRelative);
   invariant(await exists(taskPath), "TASK_NOT_FOUND", "Changeset must reference an existing AI Run task.", { taskId }, 3);
   const task = await readJson(taskPath);
-  invariant(task?.id === taskId && task?.schema === "pos.task.v1", "TASK_MISMATCH", "Changeset task does not match its AI Run.", { taskId }, 3);
+  invariant(task?.id === taskId && ["pos.task.v1", "pos.task.v2"].includes(task?.schema), "TASK_MISMATCH", "Changeset task does not match its AI Run.", { taskId }, 3);
+  if (task.schema === "pos.task.v2") {
+    invariant(task.hostId === runLocation.hostId && task.run === runLocation.runRelative, "TASK_MISMATCH", "Task host provenance does not match its AI Run path.", { taskId, hostId: task.hostId, pathHost: runLocation.hostId, taskRun: task.run, pathRun: runLocation.runRelative }, 3);
+  }
   const taskWriteScope = Array.isArray(task.writeScope) ? task.writeScope.map((item) => normalizeRelative(String(item), { allowEmpty: true })) : [];
   invariant(taskWriteScope.length > 0, "TASK_WRITE_SCOPE_REQUIRED", "Task Card must declare a write scope.", { taskId }, 3);
   invariant(Array.isArray(changeset.operations), "INVALID_CHANGESET", "Changeset operations must be an array.", undefined, 2);
@@ -271,14 +285,20 @@ export async function planChangeset(rootInput, changesetInput) {
       const targetInfo = await lstatMaybe(target);
       if (action === "create") invariant(!targetInfo, "TARGET_EXISTS", "Create target already exists.", { path: destination }, 4);
       else invariant(targetInfo?.isFile(), "UPDATE_TARGET_MISSING", "Update target must be an existing regular file.", { path: destination }, 4);
-      content = await loadContent(root, taskId, raw);
-      afterHash = sha256Text(content);
+      content = await loadContent(root, runLocation.runRelative, raw);
+      afterHash = sha256Data(content);
       if (action === "update") {
         beforeHash = await sha256File(target);
         if (raw.expectedHash) invariant(raw.expectedHash === beforeHash, "STALE_CONTENT", "Update target no longer matches the expected hash.", { path: destination, expected: raw.expectedHash, actual: beforeHash }, 4);
-        diff = diffText(await readFile(target, "utf8"), content, destination);
+        const beforeContent = await readFile(target);
+        const beforeText = textContent(beforeContent);
+        const afterText = textContent(content);
+        diff = beforeText !== null && afterText !== null
+          ? diffText(beforeText, afterText, destination)
+          : `BINARY UPDATE ${destination} (${beforeContent.length} -> ${content.length} bytes)`;
       } else {
-        diff = diffText("", content, destination);
+        const afterText = textContent(content);
+        diff = afterText !== null ? diffText("", afterText, destination) : `BINARY CREATE ${destination} (${content.length} bytes)`;
       }
       affected.push(destination);
     } else {
@@ -329,6 +349,8 @@ export async function planChangeset(rootInput, changesetInput) {
   const digestInput = {
     projectId: marker.projectId,
     taskId,
+    hostId: runLocation.hostId,
+    runRelative: runLocation.runRelative,
     policyMode: policy.mode,
     writeScope,
     operations: operations.map(({ content, diff, ...operation }) => operation),
@@ -338,6 +360,8 @@ export async function planChangeset(rootInput, changesetInput) {
     schema: "pos.plan.v1",
     projectId: marker.projectId,
     taskId,
+    hostId: runLocation.hostId,
+    runRelative: runLocation.runRelative,
     summary: String(changeset.summary ?? ""),
     changesetPath: changesetPath.relative,
     policyMode: policy.mode,
@@ -440,8 +464,8 @@ async function recordRejection(root, event, taskId, error) {
   });
 }
 
-async function updateTaskStatus(root, taskId, status, extra = {}) {
-  const taskRelative = `99_AI/runs/${taskId}/task.json`;
+async function updateTaskStatus(root, runRelative, taskId, status, extra = {}) {
+  const taskRelative = `${runRelative}/task.json`;
   await assertNoSymlinkComponents(root, taskRelative);
   const taskPath = resolveInside(root, taskRelative);
   if (!(await exists(taskPath))) return;
@@ -535,7 +559,7 @@ export async function applyChangeset(rootInput, changesetInput, options = {}) {
       createdAt: manifest.appliedAt,
     });
     await writeJsonAtomic(path.join(historyRoot, "manifest.json"), manifest);
-    await updateTaskStatus(root, plan.taskId, "applied", { appliedAt: manifest.appliedAt, planDigest: plan.planDigest });
+    await updateTaskStatus(root, plan.runRelative, plan.taskId, "applied", { appliedAt: manifest.appliedAt, planDigest: plan.planDigest });
     await appendAudit(root, {
       schema: "pos.audit.v1",
       event: "apply",
@@ -555,7 +579,7 @@ export async function applyChangeset(rootInput, changesetInput, options = {}) {
       manifest.phase = "rolled_back";
       manifest.error = error instanceof Error ? error.message : String(error);
       await writeJsonAtomic(path.join(historyRoot, "manifest.json"), manifest);
-      await updateTaskStatus(root, plan.taskId, "failed", { error: manifest.error });
+      await updateTaskStatus(root, plan.runRelative, plan.taskId, "failed", { error: manifest.error });
       await appendAudit(root, {
         schema: "pos.audit.v1",
         event: "apply",
@@ -590,7 +614,9 @@ export async function undoTask(rootInput, taskIdInput, options = {}) {
   let manifest = null;
   let originalManifest = null;
   let originalTask = null;
-  const taskPath = path.join(root, "99_AI", "runs", taskId, "task.json");
+  let taskRelative = null;
+  let taskPath = null;
+  let taskRunRelative = null;
   try {
     lockPath = await acquireLock(root, `undo-${taskId}`);
     await assertNoSymlinkComponents(root, `.pos/history/${taskId}/manifest.json`);
@@ -599,7 +625,22 @@ export async function undoTask(rootInput, taskIdInput, options = {}) {
     invariant(manifest.phase === "committed" && !manifest.undoneAt, "HISTORY_NOT_UNDOABLE", "Task is not in a committed undoable state.", { taskId, phase: manifest.phase }, 4);
     manifest.snapshots = await verifyHistory(root, taskId, historyRoot, manifest);
     originalManifest = structuredClone(manifest);
-    await assertNoSymlinkComponents(root, `99_AI/runs/${taskId}/task.json`);
+    const runLocation = runLocationFromRelative(manifest.changesetPath, taskId);
+    taskRunRelative = runLocation.runRelative;
+    taskRelative = `${taskRunRelative}/task.json`;
+    taskPath = resolveInside(root, taskRelative);
+    await assertNoSymlinkComponents(root, taskRelative);
+    if (runLocation.legacy && !(await exists(taskPath))) {
+      const upgradedRunRelative = `99_AI/hosts/legacy/runs/${taskId}`;
+      const upgradedTaskRelative = `${upgradedRunRelative}/task.json`;
+      const upgradedTaskPath = resolveInside(root, upgradedTaskRelative);
+      await assertNoSymlinkComponents(root, upgradedTaskRelative);
+      if (await exists(upgradedTaskPath)) {
+        taskRunRelative = upgradedRunRelative;
+        taskRelative = upgradedTaskRelative;
+        taskPath = upgradedTaskPath;
+      }
+    }
     if (await exists(taskPath)) originalTask = await readJson(taskPath);
     for (const snapshot of manifest.snapshots) {
       await assertNoSymlinkComponents(root, snapshot.path);
@@ -621,7 +662,7 @@ export async function undoTask(rootInput, taskIdInput, options = {}) {
     manifest.phase = "undone";
     manifest.undoneAt = isoNow();
     await writeJsonAtomic(manifestPath, manifest);
-    await updateTaskStatus(root, taskId, "undone", { undoneAt: manifest.undoneAt });
+    await updateTaskStatus(root, taskRunRelative, taskId, "undone", { undoneAt: manifest.undoneAt });
     if (process.env.POS_TEST_MODE === "1" && process.env.POS_TEST_FAIL_AFTER_UNDO_STATUS === "1") {
       throw new PosError("INJECTED_LATE_UNDO_FAILURE", "Synthetic test failure after undo status updates.", null, 5);
     }
@@ -639,8 +680,8 @@ export async function undoTask(rootInput, taskIdInput, options = {}) {
       await buildIndex(root, { write: true });
     }
     if (originalManifest) await writeJsonAtomic(manifestPath, originalManifest);
-    if (originalTask) {
-      await assertNoSymlinkComponents(root, `99_AI/runs/${taskId}/task.json`);
+    if (originalTask && taskRelative && taskPath) {
+      await assertNoSymlinkComponents(root, taskRelative);
       await writeJsonAtomic(taskPath, originalTask);
     }
     await recordRejection(root, "undo", taskId, error);

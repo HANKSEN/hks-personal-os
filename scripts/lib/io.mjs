@@ -44,6 +44,10 @@ export function sha256Text(text) {
   return createHash("sha256").update(text).digest("hex");
 }
 
+export function sha256Data(data) {
+  return createHash("sha256").update(data).digest("hex");
+}
+
 export async function sha256File(target) {
   const content = await readFile(target);
   return createHash("sha256").update(content).digest("hex");

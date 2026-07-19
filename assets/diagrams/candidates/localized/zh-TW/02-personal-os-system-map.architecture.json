@@ -1,0 +1,329 @@
+{
+  "boundaries" : [
+    {
+      "kind" : "security-group",
+      "label" : "AI 臨時空間 · 可清理、可隔離",
+      "wraps" : [
+        "ai",
+        "handoffs"
+      ]
+    },
+    {
+      "kind" : "region",
+      "label" : "正式資產空間 · 可復用、可追溯",
+      "wraps" : [
+        "para",
+        "projects",
+        "areas",
+        "resources",
+        "archive",
+        "assets"
+      ]
+    }
+  ],
+  "cards" : [
+    {
+      "dot" : "cyan",
+      "items" : [
+        "Project：階段性行動",
+        "Area：長期責任",
+        "Resource：外部參考",
+        "Archive：不再活躍"
+      ],
+      "title" : "PARA 管歸屬"
+    },
+    {
+      "dot" : "rose",
+      "items" : [
+        "按 Codex、Claude Code 等 Host 隔離",
+        "每次 Run 留存 work、proposed、logs",
+        "跨 Agent 只通過 handoff 交接"
+      ],
+      "title" : "99_AI 管過程"
+    },
+    {
+      "dot" : "emerald",
+      "items" : [
+        "K：Knowledge　E：Experience",
+        "P：Principles　A：Artifacts",
+        "D：Data，不強制每個 Area 都齊全"
+      ],
+      "title" : "資產類型管復用"
+    }
+  ],
+  "components" : [
+    {
+      "id" : "pos",
+      "label" : "POS.md",
+      "pos" : [
+        250,
+        40
+      ],
+      "size" : [
+        180,
+        72
+      ],
+      "sublabel" : "全局規則與個人上下文",
+      "tag" : "always read",
+      "type" : "security"
+    },
+    {
+      "id" : "inbox",
+      "label" : "00_Inbox",
+      "pos" : [
+        40,
+        260
+      ],
+      "size" : [
+        170,
+        72
+      ],
+      "sublabel" : "自然語言 / 檔案入口",
+      "type" : "external"
+    },
+    {
+      "id" : "router",
+      "label" : "意圖路由",
+      "pos" : [
+        250,
+        260
+      ],
+      "size" : [
+        170,
+        72
+      ],
+      "sublabel" : "目標 · 領域 · 生命週期",
+      "type" : "messagebus"
+    },
+    {
+      "id" : "ai",
+      "label" : "99_AI / hosts",
+      "pos" : [
+        470,
+        260
+      ],
+      "size" : [
+        180,
+        72
+      ],
+      "sublabel" : "Codex · Claude · Kimi …",
+      "tag" : "isolated runs",
+      "type" : "cloud"
+    },
+    {
+      "id" : "para",
+      "label" : "PARA 正式空間",
+      "pos" : [
+        700,
+        260
+      ],
+      "size" : [
+        180,
+        72
+      ],
+      "sublabel" : "確認後的唯一歸屬",
+      "tag" : "durable",
+      "type" : "backend"
+    },
+    {
+      "id" : "projects",
+      "label" : "Projects",
+      "pos" : [
+        940,
+        70
+      ],
+      "size" : [
+        170,
+        68
+      ],
+      "sublabel" : "有目標與完成節點",
+      "type" : "frontend"
+    },
+    {
+      "id" : "areas",
+      "label" : "Areas",
+      "pos" : [
+        940,
+        190
+      ],
+      "size" : [
+        170,
+        68
+      ],
+      "sublabel" : "持續經營的責任",
+      "type" : "messagebus"
+    },
+    {
+      "id" : "resources",
+      "label" : "Resources",
+      "pos" : [
+        940,
+        310
+      ],
+      "size" : [
+        170,
+        68
+      ],
+      "sublabel" : "尚未吸收的外部資料",
+      "type" : "cloud"
+    },
+    {
+      "id" : "archive",
+      "label" : "Archive",
+      "pos" : [
+        940,
+        430
+      ],
+      "size" : [
+        170,
+        68
+      ],
+      "sublabel" : "不再活躍但仍可追溯",
+      "type" : "database"
+    },
+    {
+      "id" : "assets",
+      "label" : "Area 資產類型",
+      "pos" : [
+        1150,
+        190
+      ],
+      "size" : [
+        145,
+        68
+      ],
+      "sublabel" : "K · E · P · A · D",
+      "tag" : "optional",
+      "type" : "backend"
+    },
+    {
+      "id" : "handoffs",
+      "label" : "shared / handoffs",
+      "pos" : [
+        470,
+        490
+      ],
+      "size" : [
+        180,
+        68
+      ],
+      "sublabel" : "跨 Agent 交接包",
+      "type" : "frontend"
+    },
+    {
+      "id" : "control",
+      "label" : ".pos",
+      "pos" : [
+        250,
+        490
+      ],
+      "size" : [
+        180,
+        68
+      ],
+      "sublabel" : "index · policy · audit · undo",
+      "type" : "database"
+    }
+  ],
+  "connections" : [
+    {
+      "from" : "pos",
+      "fromSide" : "bottom",
+      "label" : "規則 + 偏好",
+      "to" : "router",
+      "toSide" : "top",
+      "variant" : "security"
+    },
+    {
+      "from" : "inbox",
+      "label" : "統一入口",
+      "labelAt" : [
+        230,
+        240
+      ],
+      "to" : "router",
+      "variant" : "emphasis"
+    },
+    {
+      "from" : "router",
+      "label" : "Host + Role + Run",
+      "labelAt" : [
+        445,
+        240
+      ],
+      "to" : "ai",
+      "variant" : "emphasis"
+    },
+    {
+      "from" : "ai",
+      "label" : "確認後的 Changeset",
+      "labelAt" : [
+        675,
+        240
+      ],
+      "to" : "para",
+      "variant" : "emphasis"
+    },
+    {
+      "from" : "para",
+      "fromSide" : "right",
+      "to" : "projects",
+      "toSide" : "left"
+    },
+    {
+      "from" : "para",
+      "fromSide" : "right",
+      "to" : "areas",
+      "toSide" : "left"
+    },
+    {
+      "from" : "para",
+      "fromSide" : "right",
+      "to" : "resources",
+      "toSide" : "left"
+    },
+    {
+      "from" : "para",
+      "fromSide" : "right",
+      "to" : "archive",
+      "toSide" : "left"
+    },
+    {
+      "from" : "areas",
+      "label" : "按需細分",
+      "labelAt" : [
+        1130,
+        170
+      ],
+      "to" : "assets",
+      "variant" : "dashed"
+    },
+    {
+      "from" : "handoffs",
+      "fromSide" : "top",
+      "label" : "必要時交接",
+      "to" : "ai",
+      "toSide" : "bottom",
+      "variant" : "dashed"
+    },
+    {
+      "from" : "control",
+      "fromSide" : "top",
+      "label" : "索引與審計",
+      "to" : "router",
+      "toSide" : "bottom",
+      "variant" : "dashed"
+    }
+  ],
+  "diagram_type" : "architecture",
+  "meta" : {
+    "output" : "assets/diagrams/candidates/02-personal-os-system-map.html",
+    "subtitle" : "正式資產歸 PARA 所有；不同 Agent 的臨時檔案各自在 99_AI 中隔離",
+    "title" : "一套目錄，兩層空間",
+    "viewBox" : [
+      1420,
+      760
+    ]
+  },
+  "schema_version" : 1
+}

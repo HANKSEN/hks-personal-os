@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "一套目录，两层空间",
+    "subtitle": "正式资产归 PARA 所有；不同 Agent 的临时文件各自在 99_AI 中隔离",
+    "output": "assets/diagrams/candidates/02-personal-os-system-map.html",
+    "viewBox": [1420, 760]
+  },
+  "components": [
+    { "id": "pos", "type": "security", "label": "POS.md", "sublabel": "全局规则与个人上下文", "pos": [250, 40], "size": [180, 72], "tag": "always read" },
+    { "id": "inbox", "type": "external", "label": "00_Inbox", "sublabel": "自然语言 / 文件入口", "pos": [40, 260], "size": [170, 72] },
+    { "id": "router", "type": "messagebus", "label": "意图路由", "sublabel": "目标 · 领域 · 生命周期", "pos": [250, 260], "size": [170, 72] },
+    { "id": "ai", "type": "cloud", "label": "99_AI / hosts", "sublabel": "Codex · Claude · Kimi …", "pos": [470, 260], "size": [180, 72], "tag": "isolated runs" },
+    { "id": "para", "type": "backend", "label": "PARA 正式空间", "sublabel": "确认后的唯一归属", "pos": [700, 260], "size": [180, 72], "tag": "durable" },
+    { "id": "projects", "type": "frontend", "label": "Projects", "sublabel": "有目标与完成节点", "pos": [940, 70], "size": [170, 68] },
+    { "id": "areas", "type": "messagebus", "label": "Areas", "sublabel": "持续经营的责任", "pos": [940, 190], "size": [170, 68] },
+    { "id": "resources", "type": "cloud", "label": "Resources", "sublabel": "尚未吸收的外部资料", "pos": [940, 310], "size": [170, 68] },
+    { "id": "archive", "type": "database", "label": "Archive", "sublabel": "不再活跃但仍可追溯", "pos": [940, 430], "size": [170, 68] },
+    { "id": "assets", "type": "backend", "label": "Area 资产类型", "sublabel": "K · E · P · A · D", "pos": [1150, 190], "size": [145, 68], "tag": "optional" },
+    { "id": "handoffs", "type": "frontend", "label": "shared / handoffs", "sublabel": "跨 Agent 交接包", "pos": [470, 490], "size": [180, 68] },
+    { "id": "control", "type": "database", "label": ".pos", "sublabel": "index · policy · audit · undo", "pos": [250, 490], "size": [180, 68] }
+  ],
+  "boundaries": [
+    { "kind": "security-group", "label": "AI 临时空间 · 可清理、可隔离", "wraps": ["ai", "handoffs"] },
+    { "kind": "region", "label": "正式资产空间 · 可复用、可追溯", "wraps": ["para", "projects", "areas", "resources", "archive", "assets"] }
+  ],
+  "connections": [
+    { "from": "pos", "to": "router", "label": "规则 + 偏好", "variant": "security", "fromSide": "bottom", "toSide": "top" },
+    { "from": "inbox", "to": "router", "label": "统一入口", "variant": "emphasis", "labelAt": [230, 240] },
+    { "from": "router", "to": "ai", "label": "Host + Role + Run", "variant": "emphasis", "labelAt": [445, 240] },
+    { "from": "ai", "to": "para", "label": "确认后的 Changeset", "variant": "emphasis", "labelAt": [675, 240] },
+    { "from": "para", "to": "projects", "fromSide": "right", "toSide": "left" },
+    { "from": "para", "to": "areas", "fromSide": "right", "toSide": "left" },
+    { "from": "para", "to": "resources", "fromSide": "right", "toSide": "left" },
+    { "from": "para", "to": "archive", "fromSide": "right", "toSide": "left" },
+    { "from": "areas", "to": "assets", "label": "按需细分", "variant": "dashed", "labelAt": [1130, 170] },
+    { "from": "handoffs", "to": "ai", "label": "必要时交接", "variant": "dashed", "fromSide": "top", "toSide": "bottom" },
+    { "from": "control", "to": "router", "label": "索引与审计", "variant": "dashed", "fromSide": "top", "toSide": "bottom" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "PARA 管归属",
+      "items": [
+        "Project：阶段性行动",
+        "Area：长期责任",
+        "Resource：外部参考",
+        "Archive：不再活跃"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "99_AI 管过程",
+      "items": [
+        "按 Codex、Claude Code 等 Host 隔离",
+        "每次 Run 留存 work、proposed、logs",
+        "跨 Agent 只通过 handoff 交接"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "资产类型管复用",
+      "items": [
+        "K：Knowledge　E：Experience",
+        "P：Principles　A：Artifacts",
+        "D：Data，不强制每个 Area 都齐全"
+      ]
+    }
+  ]
+}
