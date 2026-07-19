@@ -148,3 +148,7 @@ The public repository includes a curated, sanitized design foundation, provenanc
 - The MIT license for published `v1.0.0` remains valid: [legacy license text](LICENSES/MIT-v1.0.0.txt)
 
 See [LICENSING.md](LICENSING.md) for the exact scope. User content created or stored with Personal OS does not automatically become covered by these project licenses merely because the tool was used.
+
+## Co-creators
+
+**Hanksen × Codex (OpenAI)**
