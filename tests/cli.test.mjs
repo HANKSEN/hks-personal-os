@@ -27,7 +27,7 @@ test("CLI exposes help and operates only on explicit generated roots", async () 
     assert.equal(jsonHelp.ok, true);
     assert.equal(jsonHelp.command, "help");
     assert.equal(jsonHelp.result.schema, "pos.help.v1");
-    assert.deepEqual(jsonHelp.result.commands, ["init", "index", "context", "run", "apply", "undo", "doctor", "audit", "migrate-stage", "migrate-finalize", "workspace-upgrade", "help"]);
+    assert.deepEqual(jsonHelp.result.commands, ["init", "index", "context", "run", "apply", "propose", "decide", "approval-status", "undo", "doctor", "audit", "migrate-stage", "migrate-finalize", "workspace-upgrade", "help"]);
 
     const secondary = path.join(base, "secondary-vault");
     await mkdir(secondary);

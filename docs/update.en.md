@@ -13,7 +13,7 @@ Read AGENT_UPDATE.md and update my installed Hks Personal OS to this version.
 Show the plan and every path first. Do not read or modify my Personal OS data root; wait for my approval before applying.
 ```
 
-The target release performs the update. It verifies packages, discovers managed Skill links and any existing optional CLI, displays the plan, atomically switches software links after approval, retains the previous version, and asks you to start a new Agent session.
+The target release performs the update. It verifies packages, discovers managed Skill links and any existing optional CLI, detects interactive-approval host integrations, displays the complete plan, atomically switches software links after approval, configures supported adapters, retains the previous version, and asks you to start a new Agent session. Adapter failure falls back to exact proposal-ID text confirmation and does not access a Personal OS data root. Use `--no-interactive-approval` to opt out.
 
 ## Command-line form
 

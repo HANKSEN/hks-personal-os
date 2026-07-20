@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import { createReadStream } from "node:fs";
 import {
   appendFile,
   copyFile,
@@ -49,8 +50,9 @@ export function sha256Data(data) {
 }
 
 export async function sha256File(target) {
-  const content = await readFile(target);
-  return createHash("sha256").update(content).digest("hex");
+  const hash = createHash("sha256");
+  for await (const chunk of createReadStream(target)) hash.update(chunk);
+  return hash.digest("hex");
 }
 
 export async function hashPath(target) {
@@ -123,6 +125,33 @@ export async function atomicCreate(target, content) {
       throw new PosError("TARGET_EXISTS", "Create target appeared before the atomic commit.", { path: target }, 4);
     }
     throw error;
+  } finally {
+    await rm(temp, { force: true });
+  }
+}
+
+export async function atomicCopyCreate(source, target) {
+  await ensureDir(path.dirname(target));
+  const temp = path.join(
+    path.dirname(target),
+    `.${path.basename(target)}.pos-copy-${process.pid}-${randomBytes(6).toString("hex")}`,
+  );
+  try {
+    await copyFile(source, temp, 1);
+    const handle = await open(temp, "r");
+    try {
+      await handle.sync();
+    } finally {
+      await handle.close();
+    }
+    try {
+      await link(temp, target);
+    } catch (error) {
+      if (error?.code === "EEXIST") {
+        throw new PosError("TARGET_EXISTS", "Create target appeared before the atomic commit.", { path: target }, 4);
+      }
+      throw error;
+    }
   } finally {
     await rm(temp, { force: true });
   }

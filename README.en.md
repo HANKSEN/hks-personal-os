@@ -2,9 +2,9 @@
 
 [简体中文](README.md) · [繁體中文](README.zh-TW.md) · **English**
 
-[![version](https://img.shields.io/badge/version-1.1.0-1f6feb?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/releases/tag/v1.1.0)
+[![version](https://img.shields.io/badge/version-1.2.2-1f6feb?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/releases/tag/v1.2.2)
 [![Skill](https://img.shields.io/badge/Skill-Personal_OS-6f42c1?style=flat-square)](SKILL.md)
-[![tests](https://img.shields.io/badge/tests-78_passing-2da44e?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/tree/main/tests)
+[![tests](https://img.shields.io/badge/tests-87_passing-2da44e?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/tree/main/tests)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A520-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![software license](https://img.shields.io/badge/software-AGPL--3.0--or--later-663399?style=flat-square)](LICENSE)
 [![docs license](https://img.shields.io/badge/docs-CC_BY--SA_4.0-fb782f?style=flat-square)](LICENSE-DOCS.md)
@@ -39,6 +39,8 @@ npx --yes --package=github:HANKSEN/hks-personal-os personal-os setup --agent aut
 ```
 
 Interactive setup covers installation, journey selection, path confirmation, initialization, and onboarding. Add `--with-cli` only when terminal or automation access is explicitly needed.
+
+When setup detects a supported Codex or Claude Code host integration, the reviewed install plan enables the interactive approval adapter by default. Compatible chat clients can then show **Approve / Revise / Reject / Cancel** controls; other clients fail closed to an exact proposal-ID text confirmation. Use `--no-interactive-approval` to opt out.
 
 ### Updating an existing installation
 
@@ -96,6 +98,10 @@ One event remains an Experience. Only evidence-backed, user-confirmed patterns a
 
 ![Hks Personal OS safe write workflow](assets/diagrams/en/safe-write.png)
 
+V1.2.0 turns the human gate into an interactive approval without weakening it. The button authorizes one immutable preview digest, not permanent write access. A changed or reused proposal is rejected, and protected Context still requires a separate control.
+
+V1.2.2 hardens the workflow with evidence from a real archive run. One Task can now contain multiple independently approved and undoable Changesets, and a failed second batch cannot remove the first batch's recovery history. Large datasets can be copied byte-for-byte while the panel displays only path, size, and hash; an elapsed panel remains awaiting approval and can be reopened safely.
+
 AI drafts freely inside an isolated Run. Durable changes must pass through a reviewable Changeset, deterministic validation, human approval, audit recording, and recoverable Apply / Undo behavior.
 
 ## Quick start
@@ -112,13 +118,13 @@ For existing files, ask for a read-only audit and report before any copy. See [f
 
 ## Current status
 
-- current stable release v1.1.0; software under AGPL-3.0-or-later, original explanatory documentation under CC BY-SA 4.0, with a commercial-license path;
+- current stable release v1.2.2; software under AGPL-3.0-or-later, original explanatory documentation under CC BY-SA 4.0, with a commercial-license path;
 - the published `v1.0.0` remains available under its irrevocable MIT license;
 - automated coverage for Skill-first install, package integrity, atomic update and rollback, initialization, read-only audit, copy migration, multi-host isolation, legacy-workspace upgrade, Apply / Undo, and failure recovery;
 - bounded retrieval verified with 10,000 synthetic files;
 - recovery, traversal, symlink, prompt-injection, and history-integrity coverage;
 - independently verified on macOS; Linux and Windows remain compatibility targets;
-- reviewed copy-to-new-root migration for existing directories; no default in-place reorganization, GUI, cloud sync, vector database, permanent deletion, or automatic external actions.
+- reviewed copy-to-new-root migration and host-native approval panels; no default in-place reorganization, standalone full GUI, cloud sync, vector database, permanent deletion, or automatic external actions.
 
 ## Documentation
 

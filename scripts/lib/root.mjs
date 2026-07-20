@@ -21,6 +21,7 @@ const ROOT_DIRS = [
   "99_AI/trash",
   ".pos/history",
   ".pos/transactions",
+  ".pos/approvals",
 ];
 const LEGACY_ROOT_DIRS = [
   "00_Inbox",

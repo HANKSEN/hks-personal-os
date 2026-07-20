@@ -29,6 +29,7 @@
     "node_modules/**"
   ],
   "maxOperations": 25,
+  "maxOpaqueCopyBytes": 536870912,
   "maxContextFiles": 8,
   "maxContextChars": 48000,
   "staleInboxDays": 14,

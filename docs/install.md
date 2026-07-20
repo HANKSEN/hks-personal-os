@@ -29,10 +29,11 @@ Agent 会连续完成：
 1. 检查 Node.js 和真实的 Skill 安装目录；
 2. 无写入预览安装位置；
 3. 经确认后安装 Skill 和内置运行时；
-4. 询问“新建一套”还是“整理已有目录”；
-5. 确认数据路径后初始化，或在备份门槛后只读审计旧目录；
-6. 运行健康检查；
-7. 用一篇文章、一个问题或一项真实任务带用户完成第一次使用。
+4. 检测宿主的交互审批能力；支持时默认注册本地审批适配器；
+5. 询问“新建一套”还是“整理已有目录”；
+6. 确认数据路径后初始化，或在备份门槛后只读审计旧目录；
+7. 运行健康检查；
+8. 用一篇文章、一个问题或一项真实任务带用户完成第一次使用。
 
 安装、初始化、旧目录读取、复制迁移和正式 Changeset Apply 是不同授权，不会因为第一次确认而自动放开后续权限。
 
@@ -50,6 +51,16 @@ npx --yes --package=github:HANKSEN/hks-personal-os personal-os setup --agent aut
 ```
 
 如果已经存在 Codex 或 Claude Code 的用户配置目录，`--agent auto` 还会安装相应 Skill 入口。默认不会创建 `~/.local/bin/pos`，也不要求配置 `PATH`。
+
+### 交互审批的默认行为
+
+安装器会检测 Codex 和 Claude Code 的本地宿主命令。能够安全注册 MCP 适配器时，它会在安装计划中显示精确动作，经过安装确认后默认开启。新会话中，Agent 就可在支持的聊天界面展示“批准 / 要求修改 / 拒绝 / 取消”。
+
+- 检测不到或注册失败：Skill 仍正常安装，改用绑定提案 ID 的明确文本确认；
+- 不想自动配置：添加 `--no-interactive-approval`；
+- 配置冲突：安装器不覆盖同名的其他 MCP 服务，而是报告冲突并保留文本回退。
+
+交互面板不会扩大权限。它批准的是某一个已预览计划的摘要；文件内容变化后旧批准自动失效，受保护的 `POS.md` / `CONTEXT.md` 仍需要额外确认。
 
 只想先看完整安装计划，不写任何文件：
 
@@ -138,6 +149,7 @@ node scripts/install.mjs setup --agent auto --install-only
 - 安装版本与 Skill 绝对路径；
 - `embeddedRuntime` 路径；
 - `globalCliInstalled: false`（默认）；
+- `interactiveApproval.enabled`：已启用的兼容宿主；若为空则显示文本回退；
 - 初始化后的 `health.healthy: true`；
 - 根目录中的 `START_HERE.md`；
 - 下一步自然语言请求。

@@ -129,10 +129,34 @@ export async function diagnose(rootInput) {
           issues.push({ severity: "error", code: "HISTORY_SEAL_MISSING", taskId: history.name });
         } else {
           const seal = await readJson(sealPath);
-          if (seal.schema !== "pos.transaction-seal.v1" || seal.taskId !== history.name || seal.digest !== manifest.sealDigest) {
-            issues.push({ severity: "error", code: "HISTORY_SEAL_MISMATCH", taskId: history.name });
+          if (seal.schema !== "pos.transaction-seal.v1" || (seal.changeId ?? seal.taskId) !== history.name || seal.taskId !== manifest.taskId || seal.digest !== manifest.sealDigest) {
+            issues.push({ severity: "error", code: "HISTORY_SEAL_MISMATCH", taskId: manifest.taskId ?? history.name, undoId: history.name });
           }
         }
+      }
+    }
+  }
+
+  const approvalsRoot = path.join(root, ".pos", "approvals");
+  if (await exists(approvalsRoot)) {
+    const approvals = await readdir(approvalsRoot, { withFileTypes: true });
+    for (const approval of approvals.filter((item) => item.isFile() && item.name.endsWith(".json"))) {
+      const approvalRelative = `.pos/approvals/${approval.name}`;
+      await assertNoSymlinkComponents(root, approvalRelative);
+      const record = await readJson(path.join(approvalsRoot, approval.name));
+      if (record.status !== "applied" || !record.undoId) continue;
+      const undoId = String(record.undoId);
+      const manifestRelative = `.pos/history/${undoId}/manifest.json`;
+      await assertNoSymlinkComponents(root, manifestRelative);
+      if (!(await exists(resolvePath(root, manifestRelative)))) {
+        issues.push({
+          severity: "error",
+          code: "APPLIED_APPROVAL_HISTORY_MISSING",
+          proposalId: record.proposalId ?? approval.name.replace(/\.json$/u, ""),
+          taskId: record.taskId ?? null,
+          undoId,
+          message: "The approved files may exist, but automatic Undo is unavailable because its history manifest is missing.",
+        });
       }
     }
   }
@@ -147,4 +171,8 @@ export async function diagnose(rootInput) {
     },
     issues,
   };
+}
+
+function resolvePath(root, relative) {
+  return path.join(root, ...relative.split("/"));
 }

@@ -1,6 +1,6 @@
 {
   "name": "personal-os",
-  "version": "1.1.0",
+  "version": "1.2.2",
   "description": "Local-first Hks Personal OS Skill with an embedded deterministic runtime for safe AI collaboration.",
   "type": "module",
   "bin": {
@@ -25,16 +25,19 @@
     "SKILL.md",
     "agents",
     "assets",
+    "demo",
     "docs",
     "references",
     "rfcs",
     "scripts",
+    ".mcp.json",
     ".claude-plugin",
     ".codex-plugin"
   ],
   "scripts": {
-    "check": "node scripts/validate.mjs --structure && node --check scripts/pos.mjs",
+    "check": "node scripts/validate.mjs --structure && node --check scripts/pos.mjs && node --check scripts/mcp-server.mjs",
     "test": "node --test --test-concurrency=1 tests/*.test.mjs",
+    "demo:approval": "node scripts/demo-approval.mjs",
     "validate": "npm run check && npm test"
   },
   "engines": {

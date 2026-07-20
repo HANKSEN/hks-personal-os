@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { auditExistingDirectory } from "./lib/audit.mjs";
 import { PosError, invariant } from "./lib/errors.mjs";
 import { copyPath, exists, readJson, writeJsonAtomic } from "./lib/io.mjs";
+import { applyHostIntegrations, interactiveApprovalSummary, planHostIntegrations } from "./lib/host-integration.mjs";
 import {
   buildPackageManifest,
   compareLegacyToSource,
@@ -39,6 +40,7 @@ Options:
   --data-dir <path>    Versioned package storage. Default: XDG_DATA_HOME/personal-os or ~/.local/share/personal-os.
   --bin-dir <path>     Optional global CLI link directory. Default: ~/.local/bin.
   --with-cli           Also install global pos and personal-os commands. Not required for normal Skill use.
+  --no-interactive-approval  Do not register the visual approval MCP adapter. Compatible detected hosts enable it by default.
   --to <version>       Installed target version for rollback.
   --install-only       Stop after installing and verifying the Skill.
   --workspace-mode     new or existing.
@@ -57,7 +59,7 @@ Default setup installs the Skill and its embedded runtime, not a global CLI. Sof
 
 function parse(argv) {
   const options = { skillDirs: [] };
-  const booleans = new Set(["yes", "dryRun", "json", "help", "withCli", "installOnly", "initialize"]);
+  const booleans = new Set(["yes", "dryRun", "json", "help", "withCli", "installOnly", "initialize", "interactiveApproval", "noInteractiveApproval"]);
   for (let index = 0; index < argv.length; index += 1) {
     const raw = argv[index];
     invariant(raw.startsWith("--"), "UNKNOWN_ARGUMENT", "Installer accepts options only.", { argument: raw }, 2);
@@ -382,6 +384,14 @@ export async function createInstallPlan(rawOptions = {}) {
     ? "runtime-only-compatibility"
     : skills.some((skill) => skill.name === "custom") ? "configured-skill-path" : "skill-discovery-targets";
   const pathConfigured = (process.env.PATH ?? "").split(path.delimiter).map((entry) => path.resolve(entry || ".")).includes(path.resolve(binDir));
+  const integrations = await planHostIntegrations({
+    home,
+    cwd: rawOptions.cwd ?? home,
+    env: rawOptions.env ?? process.env,
+    skills,
+    enabled: rawOptions.noInteractiveApproval !== true && rawOptions.interactiveApproval !== false,
+    hostCommands: rawOptions.hostCommands ?? (rawOptions.home && path.resolve(rawOptions.home) !== path.resolve(process.env.HOME ?? os.homedir()) ? {} : null),
+  });
   return {
     schema: "personal-os.install-plan.v1",
     package: packageJson.name,
@@ -400,6 +410,8 @@ export async function createInstallPlan(rawOptions = {}) {
     skills,
     binDir,
     pathConfigured,
+    integrations,
+    interactiveApproval: interactiveApprovalSummary(integrations),
     safetyGuide: path.join(versionDir, "docs", "safety.md"),
     warning: WARNING,
     dataBoundary: "Installer does not initialize, read, migrate, or modify a Personal OS data root.",
@@ -447,6 +459,7 @@ function nextInstallState(plan, previousState, operation) {
     manifestDigest: plan.sourceDigest,
     skills: [...skills.values()],
     binaries: [...binaries.values()],
+    integrations: plan.integrations ?? previousState?.integrations ?? [],
     updatedAt: new Date().toISOString(),
     operation,
     history,
@@ -474,7 +487,14 @@ async function commitInstallationPlan(plan, operation) {
 export async function installPackage(options = {}) {
   const plan = await createInstallPlan(options);
   if (options.dryRun || !options.yes) return { applied: false, requiresApproval: !options.dryRun, plan };
-  const state = await commitInstallationPlan(plan, options.operation ?? "install");
+  let state = await commitInstallationPlan(plan, options.operation ?? "install");
+  const integrationResults = await applyHostIntegrations(plan.integrations, {
+    home: path.resolve(options.home ?? process.env.HOME ?? os.homedir()),
+    cwd: options.cwd ?? path.resolve(options.home ?? process.env.HOME ?? os.homedir()),
+    env: options.env ?? process.env,
+  });
+  state = { ...state, integrations: integrationResults, interactiveApproval: interactiveApprovalSummary(integrationResults) };
+  await writeJsonAtomic(plan.statePath, state);
   return {
     applied: true,
     version: plan.version,
@@ -492,6 +512,8 @@ export async function installPackage(options = {}) {
     safetyGuide: plan.safetyGuide,
     warning: WARNING,
     pathConfigured: plan.pathConfigured,
+    integrations: integrationResults,
+    interactiveApproval: interactiveApprovalSummary(integrationResults),
     next: [
       plan.skills.length === 0
         ? "No Skill discovery target was configured. Use the installed SKILL.md and embedded runtime explicitly; this is runtime-only compatibility mode."
@@ -500,6 +522,9 @@ export async function installPackage(options = {}) {
         : "Use the Personal OS Skill through natural language; no global CLI is required.",
       "Restart or open a new Agent session if the host discovers newly installed Skills only at startup.",
       "Choose whether to create a new Personal OS or audit an existing directory.",
+      integrationResults.some((item) => item.enabled)
+        ? "Interactive approval is enabled for the detected compatible Agent host; start a new session so it can load the MCP adapter."
+        : "This host will use explicit text confirmation unless an MCP-compatible adapter is configured later.",
       "Before authorizing access to valuable existing files, create and restore-test an independent backup.",
     ],
   };
@@ -616,6 +641,14 @@ export async function createUpdatePlan(rawOptions = {}) {
     ? "upgrade"
     : changesLinks || versionInstall.action === "adopt-manifest" ? "repair-metadata-or-targets" : "up-to-date";
   const currentIntegrity = await verifyCurrentVersions(currentVersions, environment.versionsRoot);
+  const integrations = await planHostIntegrations({
+    home: environment.home,
+    cwd: rawOptions.cwd ?? environment.home,
+    env: rawOptions.env ?? process.env,
+    skills: links.skills,
+    enabled: rawOptions.noInteractiveApproval !== true && rawOptions.interactiveApproval !== false,
+    hostCommands: rawOptions.hostCommands ?? (rawOptions.home && path.resolve(rawOptions.home) !== path.resolve(process.env.HOME ?? os.homedir()) ? {} : null),
+  });
   return {
     schema: "personal-os.update-plan.v1",
     package: "personal-os",
@@ -632,6 +665,8 @@ export async function createUpdatePlan(rawOptions = {}) {
     binDir: environment.binDir,
     skills: links.skills,
     binaries: links.binaries,
+    integrations,
+    interactiveApproval: interactiveApprovalSummary(integrations),
     warnings: links.warnings,
     dataRootsAccessed: [],
     dataMigration: "not-performed",
@@ -643,7 +678,14 @@ export async function createUpdatePlan(rawOptions = {}) {
 export async function updatePackage(options = {}) {
   const plan = await createUpdatePlan(options);
   if (options.dryRun || !options.yes) return { applied: false, requiresApproval: !options.dryRun, plan };
-  const state = await commitInstallationPlan(plan, "update");
+  let state = await commitInstallationPlan(plan, "update");
+  const integrationResults = await applyHostIntegrations(plan.integrations, {
+    home: path.resolve(options.home ?? process.env.HOME ?? os.homedir()),
+    cwd: options.cwd ?? path.resolve(options.home ?? process.env.HOME ?? os.homedir()),
+    env: options.env ?? process.env,
+  });
+  state = { ...state, integrations: integrationResults, interactiveApproval: interactiveApprovalSummary(integrationResults) };
+  await writeJsonAtomic(plan.statePath, state);
   return {
     schema: "personal-os.update-result.v1",
     applied: true,
@@ -654,11 +696,17 @@ export async function updatePackage(options = {}) {
     integrity: "verified",
     skills: plan.skills.map(({ name, path: destination }) => ({ name, path: destination })),
     binaries: plan.binaries.map(({ path: destination }) => destination),
+    integrations: integrationResults,
+    interactiveApproval: interactiveApprovalSummary(integrationResults),
     statePath: plan.statePath,
     dataRootsAccessed: [],
     dataMigration: "not-performed",
     restartRequired: true,
-    next: ["Start a new Agent session so the host reloads the updated Skill.", "If a release notes a data-schema change, authorize a separate root-specific compatibility workflow; this update did not access any data root."],
+    next: [
+      "Start a new Agent session so the host reloads the updated Skill and interactive approval adapter.",
+      integrationResults.some((item) => item.enabled) ? "Interactive approval is enabled for a compatible host." : "Use exact proposal-ID text confirmation when the host cannot render interactive approval.",
+      "If a release notes a data-schema change, authorize a separate root-specific compatibility workflow; this update did not access any data root.",
+    ],
     state,
   };
 }
@@ -744,6 +792,8 @@ function installationSummary(result) {
     compatibilityFallback: result.compatibilityFallback ?? result.plan?.compatibilityFallback ?? false,
     installDir: result.installDir ?? result.plan?.versionInstall?.path ?? null,
     version: result.version ?? result.plan?.version ?? null,
+    interactiveApproval: result.interactiveApproval ?? result.plan?.interactiveApproval ?? null,
+    integrations: result.integrations ?? result.plan?.integrations ?? [],
   };
 }
 
@@ -756,6 +806,7 @@ function printInstallPlan(plan) {
   process.stdout.write(`- Version package: ${plan.versionInstall.path} (${plan.versionInstall.action})\n`);
   for (const skill of plan.skills) process.stdout.write(`- Skill: ${skill.path} (${skill.action})\n`);
   for (const binary of plan.binaries) process.stdout.write(`- Optional CLI: ${binary.path} (${binary.action})\n`);
+  for (const integration of plan.integrations ?? []) process.stdout.write(`- Interactive approval (${integration.host}): ${integration.action}\n`);
   process.stdout.write(`- Mode: ${plan.installMode}\n`);
   process.stdout.write(`- Safety: software installation does not authorize access to personal data directories.\n\n`);
 }
@@ -768,6 +819,7 @@ function printSoftwareChangePlan(label, plan) {
   process.stdout.write(`- Target integrity: ${plan.targetIntegrity ?? plan.versionInstall.integrity}\n`);
   for (const skill of plan.skills) process.stdout.write(`- Skill: ${skill.path} (${skill.action})\n`);
   for (const binary of plan.binaries) process.stdout.write(`- Optional CLI: ${binary.path} (${binary.action})\n`);
+  for (const integration of plan.integrations ?? []) process.stdout.write(`- Interactive approval (${integration.host}): ${integration.action}\n`);
   for (const warning of plan.warnings ?? []) process.stdout.write(`- Warning: ${warning.message}\n`);
   process.stdout.write(`- Data boundary: ${plan.dataBoundary}\n\n`);
 }
@@ -872,7 +924,12 @@ export async function runSetup(options = {}) {
       state: "WAIT_INSTALL_APPROVAL",
       installation,
       completed: ["PREFLIGHT", "INSTALL_PLAN"],
-      pendingAuthorization: { operation: "install-software", paths: [installed.plan.versionInstall.path, ...installed.plan.skills.map((item) => item.path), ...installed.plan.binaries.map((item) => item.path)], access: "write" },
+      pendingAuthorization: {
+        operation: "install-software",
+        paths: [installed.plan.versionInstall.path, ...installed.plan.skills.map((item) => item.path), ...installed.plan.binaries.map((item) => item.path)],
+        integrations: installed.plan.integrations.map((item) => ({ host: item.host, action: item.action, name: item.name, command: item.command ?? null })),
+        access: "write",
+      },
       nextAction: { type: "rerun", arguments: ["setup", "--yes"] },
       issues: [],
     });

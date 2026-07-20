@@ -149,3 +149,26 @@ test("migration staging is idempotent for an already identical target", async ()
     );
   });
 });
+
+test("migration stages and verifies multiple batches inside one audit Task", async () => {
+  await withSandbox(async ({ base, root, outside }) => {
+    const source = await createLegacyFixture(base, outside);
+    const audit = await auditExistingDirectory(root, source, { yesRead: true });
+    const { absolute: planPath, plan } = await readMigrationPlan(root, audit.plan);
+    const article = plan.items.find((item) => item.sourcePath.endsWith("article-final.md"));
+    Object.assign(article, { decision: "approved", proposedOwner: "20_Areas/创作", proposedAssetType: "Artifacts", proposedTarget: "20_Areas/创作/Artifacts/Articles/article-final.md" });
+    const binary = plan.items.find((item) => item.sourcePath === "data.bin");
+    Object.assign(binary, { decision: "approved", proposedOwner: "30_Resources", proposedAssetType: "source", proposedTarget: "30_Resources/Imported/data.bin" });
+    await writeJsonAtomic(planPath, plan);
+
+    const first = await stageCopyMigration(root, audit.plan, { yesRead: true, offset: 0, limit: 1 });
+    await applyChangeset(root, first.changeset, { yes: true, approveProtected: true });
+    const second = await stageCopyMigration(root, audit.plan, { yesRead: true, offset: 1, limit: 1 });
+    assert.notEqual(first.changeId, second.changeId);
+    assert.notEqual(first.changeset, second.changeset);
+    await applyChangeset(root, second.changeset, { yes: true });
+
+    const finalized = await finalizeCopyMigration(root, audit.plan, { yesRead: true });
+    assert.equal(finalized.verified.length, 2);
+  });
+});

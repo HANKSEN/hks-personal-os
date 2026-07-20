@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.2.2 (2026-07-20)
+
+- Separate Task identity from batch-level `changeId` / `undoId`, allowing one Run to contain multiple independently reviewed, applied, and reversible Changesets.
+- Fix a critical rollback-isolation bug where a rejected second apply under an existing history key could delete the first committed history directory.
+- Keep the 25-operation human-review boundary while returning deterministic batching guidance instead of requiring a new Task for every batch.
+- Add create-only `opaque-copy` mode for staged files up to the policy limit, with streamed SHA-256 validation, atomic byte-preserving copy, bounded preview metadata, and no forced compression.
+- Bound text diffs and MCP proposal payloads so large single-line files cannot flood the Agent conversation transport.
+- Return a retryable `awaiting_approval` result when native elicitation times out; no proposal decision or formal write occurs.
+- Diagnose applied approval records whose Undo history is missing.
+- Make reviewed copy migration generate distinct batch IDs, filenames, staging paths, and automatic opaque-copy operations for large assets.
+- Add production-incident regression coverage for history preservation, multi-batch Undo, large-file copy, bounded previews, timeout recovery, and missing-history diagnosis.
+
+## 1.2.1 (2026-07-20)
+
+- Restructure the native approval prompt as Markdown with a title, summary table, complete file-operation list, write scope, and immutable plan digest.
+- Localize the approval decision, optional note, protected-context confirmation, and all four decision labels into Simplified Chinese.
+- Preserve readable line hierarchy even when an Agent host displays the Markdown source as plain text.
+
+## 1.2.0 (2026-07-20)
+
+- Add immutable approval proposals that bind task, host, operations and a SHA-256 plan digest; changed, expired or already-consumed proposals cannot authorize a write.
+- Add `propose`, `decide`, and `approval-status` runtime commands with approve, revise, reject and cancel outcomes.
+- Add a zero-dependency stdio MCP adapter that renders native form elicitation when supported and fails closed to an exact proposal-ID text confirmation otherwise.
+- Detect supported Codex and Claude Code host integrations during installation and enable the interactive approval adapter by default, with collision refusal and `--no-interactive-approval` opt-out.
+- Keep protected Context behind a separate approval control and retain the existing Changeset, transaction, audit and Undo boundaries.
+- Add approval protocol, MCP negotiation, fallback, stale-plan and protected-content tests, plus a local Orange Editorial approval demo.
+
 ## 1.1.0 (2026-07-19)
 
 - Make setup Skill-first: the versioned Skill package includes the deterministic runtime, while global `pos` / `personal-os` links are installed only with `--with-cli` or the legacy compatibility entry.

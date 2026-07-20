@@ -32,11 +32,12 @@ node scripts/install.mjs update --agent none --skill-dir <configured-skill-paren
    - current and target versions;
    - target package integrity/digest;
    - every Skill and optional CLI link to be switched;
+   - every interactive-approval host integration to be created, reused, skipped, or refused;
    - compatibility and legacy-integrity warnings;
    - the explicit statement that `dataRootsAccessed` is empty and no data migration will run.
 6. If the plan is a downgrade, stop. Use the rollback workflow instead.
 7. After explicit software-update approval, repeat the same command with `--yes` and without `--dry-run`.
-8. Verify the result reports `integrity: verified`, the expected version, and an install-state path. Tell the user to start a new Agent session so the host reloads the Skill.
+8. Verify the result reports `integrity: verified`, the expected version, an install-state path, and the interactive-approval status. Tell the user to start a new Agent session so the host reloads the Skill and any newly registered adapter. Adapter failure must fall back to exact proposal-ID confirmation and must not be reported as full install failure.
 9. If release notes require a data compatibility change, stop after the software update and request a separate exact Personal OS root plus separate migration approval. No current generic update authorization includes that step.
 
 ## Upgrade an explicitly selected Personal OS data root

@@ -6,6 +6,7 @@ import { runLocationFromRelative } from "./ai-workspace.mjs";
 import { PosError, invariant } from "./errors.mjs";
 import {
   appendJsonl,
+  atomicCopyCreate,
   atomicCreate,
   atomicWrite,
   copyPath,
@@ -29,6 +30,9 @@ import { assertNoSymlinkComponents, matchesAny, normalizeRelative, resolveInside
 
 const ACTIONS = new Set(["create", "update", "move", "archive", "trash"]);
 const MAX_CONTENT_BYTES = 32 * 1024 * 1024;
+const DEFAULT_MAX_OPAQUE_COPY_BYTES = 512 * 1024 * 1024;
+const MAX_DIFF_CHARS = 2 * 1024;
+const MAX_DIFF_LINE_CHARS = 500;
 
 function relativeChangesetPath(root, input) {
   const absolute = path.isAbsolute(input) ? path.resolve(input) : resolveInside(root, input);
@@ -81,6 +85,14 @@ async function validateNewContainerContexts(root, operations) {
 }
 
 async function revalidateOperation(root, operation) {
+  if (operation.source) {
+    await assertNoSymlinkComponents(root, operation.source);
+    const sourceAbsolute = resolveInside(root, operation.source);
+    const sourceInfo = await lstatMaybe(sourceAbsolute);
+    invariant(sourceInfo?.isFile(), "PROPOSAL_SOURCE_MISSING", "Proposed source disappeared after planning.", { source: operation.source }, 4);
+    const sourceHash = await sha256File(sourceAbsolute);
+    invariant(sourceHash === operation.sourceHash, "STALE_CONTENT", "Proposed source changed after planning.", { source: operation.source, expected: operation.sourceHash, actual: sourceHash }, 4);
+  }
   if (operation.action === "create") {
     await assertNoSymlinkComponents(root, operation.path, { includeLeaf: false });
     invariant(!(await exists(resolveInside(root, operation.path))), "TARGET_EXISTS", "Create target appeared after planning.", { path: operation.path }, 4);
@@ -126,6 +138,7 @@ function historySealPayload(manifest) {
   return {
     schema: manifest.schema,
     taskId: manifest.taskId,
+    ...(manifest.changeId ? { changeId: manifest.changeId } : {}),
     planDigest: manifest.planDigest,
     changesetPath: manifest.changesetPath,
     operations: (manifest.operations ?? []).map((operation) => ({
@@ -154,9 +167,10 @@ function historySealDigest(manifest) {
   return sha256Text(JSON.stringify(historySealPayload(manifest)));
 }
 
-async function verifyHistory(root, taskId, historyRoot, manifest) {
-  invariant(manifest?.schema === "pos.history.v1" && manifest.taskId === taskId, "INVALID_HISTORY", "History manifest identity does not match the requested task.", { taskId, manifestTaskId: manifest?.taskId }, 3);
-  invariant(typeof manifest.planDigest === "string" && Array.isArray(manifest.operations), "INVALID_HISTORY", "History manifest is missing its plan or operations.", { taskId }, 3);
+async function verifyHistory(root, undoId, historyRoot, manifest) {
+  const manifestChangeId = manifest?.changeId ?? manifest?.taskId;
+  invariant(manifest?.schema === "pos.history.v1" && manifestChangeId === undoId, "INVALID_HISTORY", "History manifest identity does not match the requested undo ID.", { undoId, manifestChangeId }, 3);
+  invariant(typeof manifest.taskId === "string" && typeof manifest.planDigest === "string" && Array.isArray(manifest.operations), "INVALID_HISTORY", "History manifest is missing its plan or operations.", { undoId }, 3);
   const snapshots = validateHistorySnapshots(manifest);
   const expectedPaths = manifest.operations.flatMap((operation) => [operation.from, operation.path].filter(Boolean));
   ensureNoOverlap(expectedPaths);
@@ -164,13 +178,13 @@ async function verifyHistory(root, taskId, historyRoot, manifest) {
   const actual = snapshots.map((snapshot) => snapshot.path).sort();
   invariant(JSON.stringify(actual) === JSON.stringify(expected), "INVALID_HISTORY", "History snapshots do not match the applied operation paths.", { expected, actual }, 3);
 
-  const sealRelative = `.pos/transactions/${taskId}.json`;
+  const sealRelative = `.pos/transactions/${undoId}.json`;
   await assertNoSymlinkComponents(root, sealRelative);
   const sealPath = resolveInside(root, sealRelative);
-  invariant(await exists(sealPath), "HISTORY_SEAL_MISSING", "History integrity seal is missing.", { taskId }, 3);
+  invariant(await exists(sealPath), "HISTORY_SEAL_MISSING", "History integrity seal is missing.", { undoId }, 3);
   const seal = await readJson(sealPath);
   const digest = historySealDigest({ ...manifest, snapshots });
-  invariant(seal?.schema === "pos.transaction-seal.v1" && seal.taskId === taskId && seal.digest === digest && manifest.sealDigest === digest, "HISTORY_INTEGRITY_FAILURE", "History manifest no longer matches its transaction seal.", { taskId }, 3);
+  invariant(seal?.schema === "pos.transaction-seal.v1" && (seal.changeId ?? seal.taskId) === undoId && seal.taskId === manifest.taskId && seal.digest === digest && manifest.sealDigest === digest, "HISTORY_INTEGRITY_FAILURE", "History manifest no longer matches its transaction seal.", { undoId }, 3);
 
   for (const snapshot of snapshots) {
     if (!snapshot.existed) {
@@ -178,12 +192,21 @@ async function verifyHistory(root, taskId, historyRoot, manifest) {
       continue;
     }
     invariant(typeof snapshot.beforeHash === "string", "INVALID_HISTORY", "Existing snapshot is missing its before hash.", { path: snapshot.path }, 3);
-    const backupRelative = `.pos/history/${taskId}/${snapshot.backup}`;
+    const backupRelative = `.pos/history/${undoId}/${snapshot.backup}`;
     await assertNoSymlinkComponents(root, backupRelative);
     const backupHash = await hashPath(resolveInside(root, backupRelative));
     invariant(backupHash === snapshot.beforeHash, "HISTORY_BACKUP_TAMPERED", "History backup content does not match its recorded hash.", { path: snapshot.path, expected: snapshot.beforeHash, actual: backupHash }, 3);
   }
   return snapshots;
+}
+
+function compactDiff(text) {
+  if (text.length <= MAX_DIFF_CHARS) return { diff: text, diffTruncated: false };
+  return { diff: `${text.slice(0, MAX_DIFF_CHARS)}\n… preview truncated; hashes bind the complete content`, diffTruncated: true };
+}
+
+function previewLine(line) {
+  return line.length <= MAX_DIFF_LINE_CHARS ? line : `${line.slice(0, MAX_DIFF_LINE_CHARS)}…`;
 }
 
 function diffText(before, after, label) {
@@ -198,8 +221,8 @@ function diffText(before, after, label) {
     suffix < afterLines.length - prefix &&
     beforeLines[beforeLines.length - 1 - suffix] === afterLines[afterLines.length - 1 - suffix]
   ) suffix += 1;
-  const removed = beforeLines.slice(prefix, beforeLines.length - suffix).slice(0, 120).map((line) => `-${line}`);
-  const added = afterLines.slice(prefix, afterLines.length - suffix).slice(0, 120).map((line) => `+${line}`);
+  const removed = beforeLines.slice(prefix, beforeLines.length - suffix).slice(0, 120).map((line) => `-${previewLine(line)}`);
+  const added = afterLines.slice(prefix, afterLines.length - suffix).slice(0, 120).map((line) => `+${previewLine(line)}`);
   return [`--- ${label}`, `+++ ${label}`, `@@ line ${prefix + 1} @@`, ...removed, ...added].join("\n");
 }
 
@@ -211,14 +234,21 @@ function textContent(buffer) {
   return text;
 }
 
-async function loadContent(root, runRelative, operation) {
+async function loadContent(root, runRelative, operation, policy, action) {
   const hasInline = Object.hasOwn(operation, "content");
   const hasSource = typeof operation.source === "string" && operation.source.length > 0;
   invariant(hasInline !== hasSource, "INVALID_OPERATION_CONTENT", "Create/update requires exactly one of content or source.", { operation: operation.id }, 2);
+  const contentMode = String(operation.mode ?? "content");
+  invariant(["content", "opaque-copy"].includes(contentMode), "INVALID_CONTENT_MODE", "Create/update mode must be content or opaque-copy.", { operation: operation.id, mode: contentMode }, 2);
+  if (contentMode === "opaque-copy") {
+    invariant(action === "create" && hasSource, "INVALID_CONTENT_MODE", "Opaque copy is supported only for create operations with a staged source file.", { operation: operation.id }, 2);
+  }
   if (hasInline) {
+    invariant(contentMode === "content", "INVALID_CONTENT_MODE", "Inline content cannot use opaque-copy mode.", { operation: operation.id }, 2);
     const content = String(operation.content);
     invariant(Buffer.byteLength(content) <= MAX_CONTENT_BYTES, "CONTENT_TOO_LARGE", "Proposed content exceeds the v1 size limit.", { operation: operation.id }, 2);
-    return Buffer.from(content, "utf8");
+    const buffer = Buffer.from(content, "utf8");
+    return { content: buffer, contentMode, source: null, sourceSize: buffer.length, sourceHash: sha256Data(buffer) };
   }
   const source = normalizeRelative(operation.source);
   invariant(source.startsWith(`${runRelative}/proposed/`), "INVALID_PROPOSAL_SOURCE", "Proposed content must be inside the current Run's proposed directory.", { source, run: runRelative }, 3);
@@ -226,8 +256,16 @@ async function loadContent(root, runRelative, operation) {
   const absolute = resolveInside(root, source);
   const info = await lstatMaybe(absolute);
   invariant(info?.isFile(), "PROPOSAL_SOURCE_MISSING", "Proposed content file does not exist or is not a regular file.", { source }, 3);
-  invariant(info.size <= MAX_CONTENT_BYTES, "CONTENT_TOO_LARGE", "Proposed content exceeds the v1 size limit.", { source }, 2);
-  return readFile(absolute);
+  const maxBytes = contentMode === "opaque-copy" ? Number(policy.maxOpaqueCopyBytes ?? DEFAULT_MAX_OPAQUE_COPY_BYTES) : MAX_CONTENT_BYTES;
+  invariant(info.size <= maxBytes, "CONTENT_TOO_LARGE", "Proposed content exceeds the configured size limit.", { source, size: info.size, maxBytes, mode: contentMode }, 2);
+  const sourceHash = await sha256File(absolute);
+  return {
+    content: contentMode === "opaque-copy" ? null : await readFile(absolute),
+    contentMode,
+    source,
+    sourceSize: info.size,
+    sourceHash,
+  };
 }
 
 export async function planChangeset(rootInput, changesetInput) {
@@ -238,6 +276,7 @@ export async function planChangeset(rootInput, changesetInput) {
   const changeset = await readJson(changesetPath.absolute);
   invariant(changeset?.schema === "pos.changeset.v1", "INVALID_CHANGESET", "Unsupported Changeset schema.", { schema: changeset?.schema }, 2);
   const taskId = safeComponent(changeset.taskId, "Task ID");
+  const changeId = safeComponent(changeset.changeId ?? taskId, "Change ID");
   const runLocation = runLocationFromRelative(changesetPath.relative, taskId);
   invariant(changesetPath.relative.startsWith(`${runLocation.runRelative}/`), "CHANGESET_TASK_LOCATION_MISMATCH", "Changeset must live inside the AI Run it references.", { taskId, path: changesetPath.relative }, 3);
   const writeScope = Array.isArray(changeset.writeScope) ? changeset.writeScope.map((item) => normalizeRelative(String(item), { allowEmpty: true })) : [];
@@ -254,7 +293,8 @@ export async function planChangeset(rootInput, changesetInput) {
   const taskWriteScope = Array.isArray(task.writeScope) ? task.writeScope.map((item) => normalizeRelative(String(item), { allowEmpty: true })) : [];
   invariant(taskWriteScope.length > 0, "TASK_WRITE_SCOPE_REQUIRED", "Task Card must declare a write scope.", { taskId }, 3);
   invariant(Array.isArray(changeset.operations), "INVALID_CHANGESET", "Changeset operations must be an array.", undefined, 2);
-  invariant(changeset.operations.length <= Number(policy.maxOperations ?? 25), "TOO_MANY_OPERATIONS", "Changeset exceeds the configured operation limit.", { count: changeset.operations.length }, 3);
+  const maxOperations = Number(policy.maxOperations ?? 25);
+  invariant(changeset.operations.length <= maxOperations, "TOO_MANY_OPERATIONS", "Changeset exceeds the configured operation limit. Split it into logical batches with distinct changeId values under the same Task.", { count: changeset.operations.length, maxOperations, suggestedBatchCount: Math.ceil(changeset.operations.length / maxOperations) }, 3);
 
   const ids = new Set();
   const affected = [];
@@ -274,6 +314,11 @@ export async function planChangeset(rootInput, changesetInput) {
     let beforeHash = null;
     let afterHash = null;
     let diff = null;
+    let diffTruncated = false;
+    let contentMode = "content";
+    let source = null;
+    let sourceSize = null;
+    let sourceHash = null;
 
     if (action === "create" || action === "update") {
       invariant(destination, "TARGET_REQUIRED", "Create/update requires a target path.", { id }, 2);
@@ -285,8 +330,9 @@ export async function planChangeset(rootInput, changesetInput) {
       const targetInfo = await lstatMaybe(target);
       if (action === "create") invariant(!targetInfo, "TARGET_EXISTS", "Create target already exists.", { path: destination }, 4);
       else invariant(targetInfo?.isFile(), "UPDATE_TARGET_MISSING", "Update target must be an existing regular file.", { path: destination }, 4);
-      content = await loadContent(root, runLocation.runRelative, raw);
-      afterHash = sha256Data(content);
+      const loaded = await loadContent(root, runLocation.runRelative, raw, policy, action);
+      ({ content, contentMode, source, sourceSize, sourceHash } = loaded);
+      afterHash = sourceHash;
       if (action === "update") {
         beforeHash = await sha256File(target);
         if (raw.expectedHash) invariant(raw.expectedHash === beforeHash, "STALE_CONTENT", "Update target no longer matches the expected hash.", { path: destination, expected: raw.expectedHash, actual: beforeHash }, 4);
@@ -297,9 +343,14 @@ export async function planChangeset(rootInput, changesetInput) {
           ? diffText(beforeText, afterText, destination)
           : `BINARY UPDATE ${destination} (${beforeContent.length} -> ${content.length} bytes)`;
       } else {
-        const afterText = textContent(content);
-        diff = afterText !== null ? diffText("", afterText, destination) : `BINARY CREATE ${destination} (${content.length} bytes)`;
+        if (contentMode === "opaque-copy") {
+          diff = `OPAQUE COPY ${destination} (${sourceSize} bytes; sha256:${sourceHash})`;
+        } else {
+          const afterText = textContent(content);
+          diff = afterText !== null ? diffText("", afterText, destination) : `BINARY CREATE ${destination} (${content.length} bytes)`;
+        }
       }
+      ({ diff, diffTruncated } = compactDiff(diff));
       affected.push(destination);
     } else {
       invariant(from, "SOURCE_REQUIRED", `${action} requires a source path.`, { id }, 2);
@@ -338,7 +389,12 @@ export async function planChangeset(rootInput, changesetInput) {
       beforeHash,
       afterHash,
       content,
+      contentMode,
+      source,
+      sourceSize,
+      sourceHash,
       diff,
+      diffTruncated,
       protected: [from, destination].filter(Boolean).some((item) => isProtected(policy, item)),
       autoWrite: [from, destination].filter(Boolean).every((item) => isAutoWrite(policy, item)),
     });
@@ -349,6 +405,7 @@ export async function planChangeset(rootInput, changesetInput) {
   const digestInput = {
     projectId: marker.projectId,
     taskId,
+    changeId,
     hostId: runLocation.hostId,
     runRelative: runLocation.runRelative,
     policyMode: policy.mode,
@@ -360,6 +417,7 @@ export async function planChangeset(rootInput, changesetInput) {
     schema: "pos.plan.v1",
     projectId: marker.projectId,
     taskId,
+    changeId,
     hostId: runLocation.hostId,
     runRelative: runLocation.runRelative,
     summary: String(changeset.summary ?? ""),
@@ -432,7 +490,11 @@ async function restoreSnapshots(root, historyRoot, snapshots) {
 
 async function executeOperation(root, operation) {
   if (operation.action === "create") {
-    await atomicCreate(resolveInside(root, operation.path), operation.content);
+    if (operation.contentMode === "opaque-copy") {
+      await atomicCopyCreate(resolveInside(root, operation.source), resolveInside(root, operation.path));
+    } else {
+      await atomicCreate(resolveInside(root, operation.path), operation.content);
+    }
     return;
   }
   if (operation.action === "update") {
@@ -485,6 +547,7 @@ export async function applyChangeset(rootInput, changesetInput, options = {}) {
   const { root } = await openRoot(rootInput);
   let lockPath = null;
   let historyRoot = null;
+  let historyCreatedByAttempt = false;
   let transactionSealPath = null;
   let plan = null;
   let manifest;
@@ -492,6 +555,15 @@ export async function applyChangeset(rootInput, changesetInput, options = {}) {
   try {
     lockPath = await acquireLock(root, "apply");
     plan = await planChangeset(root, changesetInput);
+    if (options.expectedPlanDigest !== undefined) {
+      invariant(
+        typeof options.expectedPlanDigest === "string" && options.expectedPlanDigest === plan.planDigest,
+        "APPROVED_PLAN_CHANGED",
+        "The Changeset no longer matches the approved preview. Create and approve a fresh proposal.",
+        { expected: options.expectedPlanDigest, actual: plan.planDigest },
+        7,
+      );
+    }
     const policy = await loadPolicy(root);
     invariant(plan.operations.length > 0, "EMPTY_CHANGESET", "Changeset has no operations to apply.", undefined, 2);
     for (const operation of plan.operations) {
@@ -502,18 +574,20 @@ export async function applyChangeset(rootInput, changesetInput, options = {}) {
     }
     await revalidatePlan(root, plan);
 
-    historyRoot = path.join(root, ".pos", "history", plan.taskId);
-    const transactionSealRelative = `.pos/transactions/${plan.taskId}.json`;
+    historyRoot = path.join(root, ".pos", "history", plan.changeId);
+    const transactionSealRelative = `.pos/transactions/${plan.changeId}.json`;
     await assertNoSymlinkComponents(root, transactionSealRelative);
     transactionSealPath = resolveInside(root, transactionSealRelative);
-    invariant(!(await exists(historyRoot)), "TASK_ALREADY_APPLIED", "A history record already exists for this task.", { taskId: plan.taskId }, 4);
-    invariant(!(await exists(transactionSealPath)), "TASK_ALREADY_APPLIED", "A transaction seal already exists for this task.", { taskId: plan.taskId }, 4);
+    invariant(!(await exists(historyRoot)), "CHANGE_ALREADY_APPLIED", "A history record already exists for this change batch.", { taskId: plan.taskId, changeId: plan.changeId }, 4);
+    invariant(!(await exists(transactionSealPath)), "CHANGE_ALREADY_APPLIED", "A transaction seal already exists for this change batch.", { taskId: plan.taskId, changeId: plan.changeId }, 4);
     const affectedPaths = [...new Set(plan.operations.flatMap((operation) => [operation.from, operation.path].filter(Boolean)))];
     await ensureDir(historyRoot);
+    historyCreatedByAttempt = true;
     const snapshots = await snapshotAffected(root, historyRoot, affectedPaths);
     manifest = {
       schema: "pos.history.v1",
       taskId: plan.taskId,
+      changeId: plan.changeId,
       planDigest: plan.planDigest,
       phase: "prepared",
       appliedAt: null,
@@ -555,21 +629,26 @@ export async function applyChangeset(rootInput, changesetInput, options = {}) {
     await writeJsonAtomic(transactionSealPath, {
       schema: "pos.transaction-seal.v1",
       taskId: plan.taskId,
+      changeId: plan.changeId,
       digest: manifest.sealDigest,
       createdAt: manifest.appliedAt,
     });
     await writeJsonAtomic(path.join(historyRoot, "manifest.json"), manifest);
-    await updateTaskStatus(root, plan.runRelative, plan.taskId, "applied", { appliedAt: manifest.appliedAt, planDigest: plan.planDigest });
+    const taskPath = resolveInside(root, `${plan.runRelative}/task.json`);
+    const currentTask = await readJson(taskPath);
+    const appliedChangeIds = [...new Set([...(currentTask.appliedChangeIds ?? []), plan.changeId])];
+    await updateTaskStatus(root, plan.runRelative, plan.taskId, "applied", { appliedAt: manifest.appliedAt, planDigest: plan.planDigest, appliedChangeIds });
     await appendAudit(root, {
       schema: "pos.audit.v1",
       event: "apply",
       taskId: plan.taskId,
+      changeId: plan.changeId,
       at: manifest.appliedAt,
       planDigest: plan.planDigest,
       operations: plan.operations.map((operation) => ({ id: operation.id, action: operation.action, from: operation.from, path: operation.path, reason: operation.reason })),
       result: "committed",
     });
-    return { applied: true, taskId: plan.taskId, planDigest: plan.planDigest, operations: plan.operations.length };
+    return { applied: true, taskId: plan.taskId, changeId: plan.changeId, undoId: plan.changeId, planDigest: plan.planDigest, operations: plan.operations.length };
   } catch (error) {
     if (manifest?.snapshots) {
       const rollbackSnapshots = manifest.snapshots.filter((snapshot) => executedPaths.has(snapshot.path));
@@ -579,7 +658,10 @@ export async function applyChangeset(rootInput, changesetInput, options = {}) {
       manifest.phase = "rolled_back";
       manifest.error = error instanceof Error ? error.message : String(error);
       await writeJsonAtomic(path.join(historyRoot, "manifest.json"), manifest);
-      await updateTaskStatus(root, plan.runRelative, plan.taskId, "failed", { error: manifest.error });
+      const taskPath = resolveInside(root, `${plan.runRelative}/task.json`);
+      const currentTask = await readJson(taskPath);
+      const retainedStatus = (currentTask.appliedChangeIds ?? []).length > 0 ? "applied" : "failed";
+      await updateTaskStatus(root, plan.runRelative, plan.taskId, retainedStatus, { error: manifest.error, failedChangeId: plan.changeId });
       await appendAudit(root, {
         schema: "pos.audit.v1",
         event: "apply",
@@ -589,7 +671,7 @@ export async function applyChangeset(rootInput, changesetInput, options = {}) {
         error: manifest.error,
       });
     } else {
-      if (historyRoot && (await exists(historyRoot))) await removePath(historyRoot);
+      if (historyCreatedByAttempt && historyRoot && (await exists(historyRoot))) await removePath(historyRoot);
       await recordRejection(root, "apply", plan?.taskId ?? null, error);
     }
     throw error;
@@ -598,16 +680,16 @@ export async function applyChangeset(rootInput, changesetInput, options = {}) {
   }
 }
 
-export async function undoTask(rootInput, taskIdInput, options = {}) {
-  const taskId = safeComponent(taskIdInput, "Task ID");
+export async function undoTask(rootInput, undoIdInput, options = {}) {
+  const undoId = safeComponent(undoIdInput, "Undo ID");
   const { root } = await openRoot(rootInput);
   if (!options.yes) {
     const error = new PosError("APPROVAL_REQUIRED", "Undo requires --yes after reviewing the task history.", undefined, 7);
-    await recordRejection(root, "undo", taskId, error);
+    await recordRejection(root, "undo", undoId, error);
     throw error;
   }
   let lockPath = null;
-  const historyRoot = path.join(root, ".pos", "history", taskId);
+  const historyRoot = path.join(root, ".pos", "history", undoId);
   const manifestPath = path.join(historyRoot, "manifest.json");
   const undoRoot = path.join(historyRoot, "undo-before");
   let currentSnapshots = null;
@@ -618,13 +700,14 @@ export async function undoTask(rootInput, taskIdInput, options = {}) {
   let taskPath = null;
   let taskRunRelative = null;
   try {
-    lockPath = await acquireLock(root, `undo-${taskId}`);
-    await assertNoSymlinkComponents(root, `.pos/history/${taskId}/manifest.json`);
-    invariant(await exists(historyRoot), "HISTORY_NOT_FOUND", "No applied history exists for this task.", { taskId }, 4);
+    lockPath = await acquireLock(root, `undo-${undoId}`);
+    await assertNoSymlinkComponents(root, `.pos/history/${undoId}/manifest.json`);
+    invariant(await exists(historyRoot), "HISTORY_NOT_FOUND", "No applied history exists for this undo ID.", { undoId }, 4);
     manifest = await readJson(manifestPath);
-    invariant(manifest.phase === "committed" && !manifest.undoneAt, "HISTORY_NOT_UNDOABLE", "Task is not in a committed undoable state.", { taskId, phase: manifest.phase }, 4);
-    manifest.snapshots = await verifyHistory(root, taskId, historyRoot, manifest);
+    invariant(manifest.phase === "committed" && !manifest.undoneAt, "HISTORY_NOT_UNDOABLE", "Change batch is not in a committed undoable state.", { undoId, phase: manifest.phase }, 4);
+    manifest.snapshots = await verifyHistory(root, undoId, historyRoot, manifest);
     originalManifest = structuredClone(manifest);
+    const taskId = manifest.taskId;
     const runLocation = runLocationFromRelative(manifest.changesetPath, taskId);
     taskRunRelative = runLocation.runRelative;
     taskRelative = `${taskRunRelative}/task.json`;
@@ -644,7 +727,7 @@ export async function undoTask(rootInput, taskIdInput, options = {}) {
     if (await exists(taskPath)) originalTask = await readJson(taskPath);
     for (const snapshot of manifest.snapshots) {
       await assertNoSymlinkComponents(root, snapshot.path);
-      if (snapshot.existed) await assertNoSymlinkComponents(root, `.pos/history/${taskId}/${snapshot.backup}`);
+      if (snapshot.existed) await assertNoSymlinkComponents(root, `.pos/history/${undoId}/${snapshot.backup}`);
       const current = await hashPath(resolveInside(root, snapshot.path));
       if (!options.force && current !== snapshot.afterHash) {
         throw new PosError("UNDO_CONFLICT", "A later change conflicts with this undo.", { path: snapshot.path, expected: snapshot.afterHash, actual: current }, 4);
@@ -662,7 +745,11 @@ export async function undoTask(rootInput, taskIdInput, options = {}) {
     manifest.phase = "undone";
     manifest.undoneAt = isoNow();
     await writeJsonAtomic(manifestPath, manifest);
-    await updateTaskStatus(root, taskRunRelative, taskId, "undone", { undoneAt: manifest.undoneAt });
+    const currentTask = await readJson(taskPath);
+    const appliedChangeIds = currentTask.appliedChangeIds ?? [taskId];
+    const undoneChangeIds = [...new Set([...(currentTask.undoneChangeIds ?? []), undoId])];
+    const taskStatus = appliedChangeIds.every((changeId) => undoneChangeIds.includes(changeId)) ? "undone" : "applied";
+    await updateTaskStatus(root, taskRunRelative, taskId, taskStatus, { undoneAt: manifest.undoneAt, undoneChangeIds });
     if (process.env.POS_TEST_MODE === "1" && process.env.POS_TEST_FAIL_AFTER_UNDO_STATUS === "1") {
       throw new PosError("INJECTED_LATE_UNDO_FAILURE", "Synthetic test failure after undo status updates.", null, 5);
     }
@@ -670,10 +757,11 @@ export async function undoTask(rootInput, taskIdInput, options = {}) {
       schema: "pos.audit.v1",
       event: "undo",
       taskId,
+      changeId: undoId,
       at: manifest.undoneAt,
       result: "committed",
     });
-    return { undone: true, taskId, restoredPaths: manifest.snapshots.length };
+    return { undone: true, taskId, changeId: undoId, undoId, restoredPaths: manifest.snapshots.length };
   } catch (error) {
     if (currentSnapshots) {
       await restoreSnapshots(root, undoRoot, currentSnapshots);
@@ -684,7 +772,7 @@ export async function undoTask(rootInput, taskIdInput, options = {}) {
       await assertNoSymlinkComponents(root, taskRelative);
       await writeJsonAtomic(taskPath, originalTask);
     }
-    await recordRejection(root, "undo", taskId, error);
+    await recordRejection(root, "undo", undoId, error);
     throw error;
   } finally {
     if (lockPath) await rm(lockPath, { force: true });

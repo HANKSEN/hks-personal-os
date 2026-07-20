@@ -32,16 +32,18 @@ The default user experience is Skill-first. Install the Personal OS Skill and it
 node scripts/install.mjs setup --agent <target> --dry-run --json
 ```
 
-6. Show every version-package and Skill destination. Mention that no global CLI will be installed by default.
+6. Show every version-package and Skill destination. Mention that no global CLI will be installed by default. Also show each detected interactive-approval integration and whether it will be created, reused, skipped, or refused due to collision.
 7. After software-install approval:
 
 ```bash
 node scripts/install.mjs setup --agent <target> --yes --json
 ```
 
-8. Verify each reported Skill destination contains `SKILL.md` and `scripts/pos.mjs`. If the host discovers Skills only at startup, tell the user to start a new Agent session and continue setup there.
+8. Verify each reported Skill destination contains `SKILL.md` and `scripts/pos.mjs`. When the installer reports an enabled interactive-approval integration, also report the host name and tell the user that a new session may be required to load it. If the integration is unavailable or fails, explicitly state that Personal OS will use exact proposal-ID text confirmation instead; do not block the Skill installation.
 
 If the user explicitly asks for a global CLI, add `--with-cli`. CLI installation remains optional and does not grant data-root access.
+
+Interactive approval is enabled by default only through a reviewed supported-host registration. Use `--no-interactive-approval` if the user opts out. Never overwrite a same-name unrelated MCP registration or claim that button approval grants broader filesystem permission.
 
 ## 2. Continue instead of stopping after installation
 
@@ -109,8 +111,9 @@ node <installed-skill-root>/scripts/pos.mjs migrate-stage <target-root> <migrati
 ```
 
 10. Preview the returned Changeset with the embedded runtime. Apply only after the user reviews source, target, reason, conflicts, and scope.
-    - Preview: `node <installed-skill-root>/scripts/pos.mjs apply <target-root> <changeset>`
-    - Apply after approval: add `--yes`.
+    - Preferred interactive path: call `personal_os_preview`, then `personal_os_review`; the latter applies only the exact proposal after a panel decision.
+    - Text fallback: run `propose`, require the exact `APPROVE <proposal-id>` phrase, then run `decide --decision approve`.
+    - Legacy/manual path: `apply` without `--yes`, then add `--yes` only after explicit review.
     - If the reviewed batch creates a new Area or Project `CONTEXT.md`, explain that protected context is being created and add `--approve-protected` only after that separate approval.
 11. After apply, finalize verification:
 

@@ -2,6 +2,7 @@
 
 import { applyChangeset, publicPlan, undoTask } from "./lib/changeset.mjs";
 import { auditExistingDirectory } from "./lib/audit.mjs";
+import { approvalStatus, createApprovalProposal, decideApproval } from "./lib/approval.mjs";
 import { retrieveContext } from "./lib/context.mjs";
 import { diagnose } from "./lib/doctor.mjs";
 import { errorPayload, PosError } from "./lib/errors.mjs";
@@ -19,7 +20,10 @@ Usage:
   pos context <root> [--query "..."] [--host codex] [--role creator] [--area "..."] [--project "..."] [--max-files 8] [--max-chars 48000]
   pos run <root> --goal "..." [--host codex] [--role orchestrator] [--intent create] [--area "..."] [--project "..."] [--write-scope "pattern,pattern"]
   pos apply <root> <changeset> [--yes] [--approve-protected]
-  pos undo <root> <task-id> --yes [--force]
+  pos propose <root> <changeset>
+  pos decide <root> <proposal-id> --decision approve|revise|reject|cancel [--approve-protected]
+  pos approval-status <root> <proposal-id>
+  pos undo <root> <undo-id> --yes [--force]
   pos doctor <root>
   pos audit <target-root> --source <existing-root> --host codex --yes-read
   pos migrate-stage <target-root> <migration-plan> --yes-read [--approve-all] [--offset 0] [--limit 20]
@@ -32,7 +36,7 @@ All roots must be explicit. No command searches parent directories. Previewing a
 const HELP_RESULT = {
   schema: "pos.help.v1",
   usage: "pos <command> [arguments] [options]",
-  commands: ["init", "index", "context", "run", "apply", "undo", "doctor", "audit", "migrate-stage", "migrate-finalize", "workspace-upgrade", "help"],
+  commands: ["init", "index", "context", "run", "apply", "propose", "decide", "approval-status", "undo", "doctor", "audit", "migrate-stage", "migrate-finalize", "workspace-upgrade", "help"],
   text: HELP,
 };
 
@@ -133,6 +137,17 @@ async function main() {
       yes: options.yes === true,
       approveProtected: options.approveProtected === true,
     });
+  } else if (command === "propose") {
+    result = await createApprovalProposal(positional[0], positional[1], { expiresAt: options.expiresAt });
+  } else if (command === "decide") {
+    if (!options.decision) throw new PosError("APPROVAL_DECISION_REQUIRED", "Decide requires --decision approve|revise|reject|cancel.", undefined, 2);
+    result = await decideApproval(positional[0], positional[1], options.decision, {
+      approveProtected: options.approveProtected === true,
+      channel: options.channel ?? "cli",
+      note: options.note,
+    });
+  } else if (command === "approval-status") {
+    result = await approvalStatus(positional[0], positional[1]);
   } else if (command === "undo") {
     result = await undoTask(positional[0], positional[1], { yes: options.yes === true, force: options.force === true });
   } else if (command === "doctor") {

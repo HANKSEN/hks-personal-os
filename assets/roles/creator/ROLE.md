@@ -1,6 +1,6 @@
 ---
 id: creator
-version: 1.1.0
+version: 1.2.2
 type: role
 status: active
 ---

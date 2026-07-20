@@ -3,6 +3,7 @@ schema: pos.result.v1
 task_id:
 status: pending
 undo_id:
+undo_ids: []
 ---
 
 # Result

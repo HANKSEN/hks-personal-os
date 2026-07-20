@@ -60,7 +60,7 @@ export async function createRun(rootInput, options = {}) {
     intent: options.intent ?? null,
     hostId,
     roleId,
-    runtimeVersion: "1.1.0",
+    runtimeVersion: "1.2.2",
     run: runRelative,
     deliverable: options.deliverable ?? null,
     area,
@@ -74,7 +74,7 @@ export async function createRun(rootInput, options = {}) {
     createdAt,
   };
 
-  const taskMarkdown = `---\nschema: pos.task.v2\nid: ${JSON.stringify(taskId)}\nstatus: ${task.status}\nintent: ${task.intent ?? ""}\nhost_id: ${hostId}\nrole_id: ${roleId}\nruntime_version: 1.1.0\narea: ${task.area ? JSON.stringify(task.area) : ""}\nproject: ${task.project ? JSON.stringify(task.project) : ""}\nrisk: ${task.risk}\ncreated_at: ${createdAt}\n---\n\n# Task\n\n## Request\n\n${task.request}\n\n## Goal\n\n${task.goal}\n\n## Deliverable\n\n${task.deliverable ?? ""}\n\n## Assumptions\n\n${task.assumptions.map((item) => `- ${item}`).join("\n")}\n\n## Missing information\n\n${task.missingInformation.map((item) => `- ${item}`).join("\n")}\n\n## Context refs\n\n${context.context.map((item) => `- ${item.path} — ${item.reason}`).join("\n")}\n\n## Write scope\n\n${writeScope.map((item) => `- ${item}`).join("\n")}\n\n## Approval required\n\n${task.approvalRequired ? "yes" : "no"}\n`;
+  const taskMarkdown = `---\nschema: pos.task.v2\nid: ${JSON.stringify(taskId)}\nstatus: ${task.status}\nintent: ${task.intent ?? ""}\nhost_id: ${hostId}\nrole_id: ${roleId}\nruntime_version: 1.2.2\narea: ${task.area ? JSON.stringify(task.area) : ""}\nproject: ${task.project ? JSON.stringify(task.project) : ""}\nrisk: ${task.risk}\ncreated_at: ${createdAt}\n---\n\n# Task\n\n## Request\n\n${task.request}\n\n## Goal\n\n${task.goal}\n\n## Deliverable\n\n${task.deliverable ?? ""}\n\n## Assumptions\n\n${task.assumptions.map((item) => `- ${item}`).join("\n")}\n\n## Missing information\n\n${task.missingInformation.map((item) => `- ${item}`).join("\n")}\n\n## Context refs\n\n${context.context.map((item) => `- ${item.path} — ${item.reason}`).join("\n")}\n\n## Write scope\n\n${writeScope.map((item) => `- ${item}`).join("\n")}\n\n## Approval required\n\n${task.approvalRequired ? "yes" : "no"}\n`;
 
   await atomicWrite(path.join(runRoot, "TASK.md"), taskMarkdown);
   await writeJsonAtomic(path.join(runRoot, "task.json"), task);
@@ -86,6 +86,6 @@ export async function createRun(rootInput, options = {}) {
     writeScope,
     operations: [],
   });
-  await atomicWrite(path.join(runRoot, "RESULT.md"), `---\nschema: pos.result.v1\ntask_id: ${JSON.stringify(taskId)}\nstatus: pending\nundo_id:\n---\n\n# Result\n\n## Outcome\n\n## Context used\n\n## Files proposed or changed\n\n## Decisions and assumptions\n\n## Unresolved\n\n## Next action\n`);
+  await atomicWrite(path.join(runRoot, "RESULT.md"), `---\nschema: pos.result.v1\ntask_id: ${JSON.stringify(taskId)}\nstatus: pending\nundo_id:\nundo_ids: []\n---\n\n# Result\n\n## Outcome\n\n## Context used\n\n## Files proposed or changed\n\n## Decisions and assumptions\n\n## Unresolved\n\n## Next action\n`);
   return { taskId, run: runRelative, task, context };
 }

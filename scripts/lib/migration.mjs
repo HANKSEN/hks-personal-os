@@ -4,12 +4,13 @@ import path from "node:path";
 import { readMigrationPlan, scanSource } from "./audit.mjs";
 import { diagnose } from "./doctor.mjs";
 import { PosError, invariant } from "./errors.mjs";
-import { atomicWrite, copyPath, exists, readJson, sha256File, writeJsonAtomic } from "./io.mjs";
+import { atomicWrite, copyPath, exists, readJson, sha256File, sha256Text, writeJsonAtomic } from "./io.mjs";
 import { assertRootNotSymlink, normalizeRelative, pathIdentity, resolveInside, safeComponent } from "./safe-path.mjs";
 import { BACKUP_WARNING } from "./setup.mjs";
 
 const ALLOWED_TOP_LEVEL = new Set(["00_Inbox", "10_Projects", "20_Areas", "30_Resources", "90_Archive"]);
 const MAX_STAGE_OPERATIONS = 25;
+const MAX_INLINE_CONTENT_BYTES = 32 * 1024 * 1024;
 
 function contextContent(top, name) {
   if (top === "20_Areas") {
@@ -47,7 +48,7 @@ function formalTarget(item) {
   return target;
 }
 
-async function addContainerContexts(root, runRelative, targets, operations, stagedSources, scopes) {
+async function addContainerContexts(root, proposedRoot, targets, operations, stagedSources, scopes) {
   const containers = new Map();
   for (const target of targets) {
     const parts = target.split("/");
@@ -58,7 +59,7 @@ async function addContainerContexts(root, runRelative, targets, operations, stag
   for (const [container, meta] of containers) {
     if (await exists(resolveInside(root, container))) continue;
     const contextTarget = `${container}/CONTEXT.md`;
-    const source = `${runRelative}/proposed/imports/context-${String(index + 1).padStart(3, "0")}.md`;
+    const source = `${proposedRoot}/context-${String(index + 1).padStart(3, "0")}.md`;
     await atomicWrite(resolveInside(root, source), contextContent(meta.top, meta.name));
     operations.push({ id: `context-${String(index + 1).padStart(3, "0")}`, action: "create", path: contextTarget, source, reason: `Create required Context for reviewed imported ${meta.top === "20_Areas" ? "Area" : "Project"}.` });
     stagedSources.push(source);
@@ -90,11 +91,15 @@ export async function stageCopyMigration(targetRootInput, planInput, options = {
   }
 
   const runRelative = runLocation.runRelative;
+  const batchOffset = Number(options.offset ?? 0);
+  const batchKey = `migration-${batchOffset}-${selected.length}`;
+  const changeId = `migration-${sha256Text(`${taskId}:${batchOffset}:${selected.length}`).slice(0, 24)}`;
+  const proposedRoot = `${runRelative}/proposed/imports/${batchKey}`;
   const operations = [];
   const stagedSources = [];
   const scopes = new Set([`${runRelative}/**`]);
   const skippedIdentical = [];
-  await addContainerContexts(root, runRelative, targets, operations, stagedSources, scopes);
+  await addContainerContexts(root, proposedRoot, targets, operations, stagedSources, scopes);
 
   for (let index = 0; index < selected.length; index += 1) {
     const item = selected[index];
@@ -110,7 +115,7 @@ export async function stageCopyMigration(targetRootInput, planInput, options = {
       throw new PosError("MIGRATION_TARGET_EXISTS", "Migration target already exists with different content.", { sourcePath: source.relative, target, sourceHash: source.currentHash, targetHash: existingHash }, 4);
     }
     const extension = path.extname(source.relative);
-    const staged = `${runRelative}/proposed/imports/item-${String(index + 1).padStart(3, "0")}${extension}`;
+    const staged = `${proposedRoot}/item-${String(index + 1).padStart(3, "0")}${extension}`;
     await copyPath(source.absolute, resolveInside(root, staged));
     const stagedHash = await sha256File(resolveInside(root, staged));
     invariant(stagedHash === source.currentHash, "MIGRATION_STAGE_HASH_MISMATCH", "Staged migration copy does not match its source.", { sourcePath: source.relative, staged, expected: source.currentHash, actual: stagedHash }, 5);
@@ -119,6 +124,7 @@ export async function stageCopyMigration(targetRootInput, planInput, options = {
       action: "create",
       path: target,
       source: staged,
+      ...(source.info.size > MAX_INLINE_CONTENT_BYTES ? { mode: "opaque-copy" } : {}),
       reason: `Copy reviewed source ${source.relative}; source sha256 ${source.currentHash}.`,
     });
     stagedSources.push(staged);
@@ -128,29 +134,34 @@ export async function stageCopyMigration(targetRootInput, planInput, options = {
   invariant(operations.length > 0, "MIGRATION_NOTHING_TO_STAGE", "All selected items already exist identically; no Changeset is needed.", { skippedIdentical }, 2);
   invariant(operations.length <= MAX_STAGE_OPERATIONS, "MIGRATION_BATCH_TOO_LARGE", "Migration batch plus required Context files exceeds the Changeset operation limit.", { operations: operations.length, max: MAX_STAGE_OPERATIONS }, 3);
   const writeScope = [...scopes];
+  const changesetRelative = `${runRelative}/CHANGESET-${batchKey}.json`;
   const taskPath = resolveInside(root, `${runRelative}/task.json`);
   const task = await readJson(taskPath);
   task.status = "awaiting_approval";
-  task.writeScope = writeScope;
+  task.writeScope = [...new Set([...(task.writeScope ?? []), ...writeScope])];
   task.approvalRequired = true;
   task.migration = { sourceRoot, sourceDigest: plan.sourceDigest, selected: selected.length, staged: operations.length, skippedIdentical: skippedIdentical.length };
+  const priorBatches = Array.isArray(task.migrationBatches) ? task.migrationBatches.filter((item) => item.changeId !== changeId) : [];
+  task.migrationBatches = [...priorBatches, { changeId, changeset: changesetRelative, selected: selected.length, staged: operations.length }];
   task.updatedAt = new Date().toISOString();
   await writeJsonAtomic(taskPath, task);
 
   const changeset = {
     schema: "pos.changeset.v1",
     taskId,
+    changeId,
     summary: `Copy ${operations.filter((operation) => operation.id.startsWith("import-")).length} reviewed assets from an existing read-only directory`,
     writeScope,
     operations,
   };
-  const changesetPath = resolveInside(root, `${runRelative}/CHANGESET.json`);
+  const changesetPath = resolveInside(root, changesetRelative);
   await writeJsonAtomic(changesetPath, changeset);
-  await atomicWrite(resolveInside(root, `${runRelative}/work/MIGRATION_RESULT.md`), `# Migration Result\n\nStatus: staged, awaiting Changeset review and apply\n\n- Source root: ${sourceRoot}\n- Source digest: ${plan.sourceDigest}\n- Selected items: ${selected.length}\n- Staged operations: ${operations.length}\n- Already identical: ${skippedIdentical.length}\n- Changeset: ${runRelative}/CHANGESET.json\n\nThe source directory has not been modified. Preview the Changeset before applying it.\n`);
+  await atomicWrite(resolveInside(root, `${runRelative}/work/MIGRATION_RESULT-${batchKey}.md`), `# Migration Result\n\nStatus: staged, awaiting Changeset review and apply\n\n- Source root: ${sourceRoot}\n- Source digest: ${plan.sourceDigest}\n- Batch: ${changeId}\n- Selected items: ${selected.length}\n- Staged operations: ${operations.length}\n- Already identical: ${skippedIdentical.length}\n- Changeset: ${changesetRelative}\n\nThe source directory has not been modified. Preview the Changeset before applying it.\n`);
 
   return {
     schema: "personal-os.migration-stage.v1",
     taskId,
+    changeId,
     run: runRelative,
     sourceRoot,
     targetRoot: root,
@@ -158,8 +169,8 @@ export async function stageCopyMigration(targetRootInput, planInput, options = {
     selected: selected.length,
     operations: operations.length,
     skippedIdentical,
-    changeset: `${runRelative}/CHANGESET.json`,
-    nextAction: { type: "preview-changeset", changeset: `${runRelative}/CHANGESET.json` },
+    changeset: changesetRelative,
+    nextAction: { type: "preview-changeset", changeset: changesetRelative },
   };
 }
 
@@ -174,9 +185,20 @@ export async function finalizeCopyMigration(targetRootInput, planInput, options 
   const latest = await scanSource(path.resolve(plan.sourceRoot), { includeExcerpt: false });
   invariant(latest.digest === plan.sourceDigest, "MIGRATION_SOURCE_CHANGED", "Source directory changed after the reviewed audit. Final verification cannot claim source stability.", { expected: plan.sourceDigest, actual: latest.digest }, 4);
 
-  const changeset = await readJson(resolveInside(root, `${runRelative}/CHANGESET.json`));
+  const batchRecords = Array.isArray(task.migrationBatches) && task.migrationBatches.length > 0
+    ? task.migrationBatches
+    : [{ changeId: taskId, changeset: `${runRelative}/CHANGESET.json` }];
+  const appliedChangesets = [];
+  for (const batch of batchRecords) {
+    const historyPath = resolveInside(root, `.pos/history/${safeComponent(batch.changeId, "Change ID")}/manifest.json`);
+    if (!(await exists(historyPath))) continue;
+    const manifest = await readJson(historyPath);
+    if (manifest.phase !== "committed") continue;
+    appliedChangesets.push(await readJson(resolveInside(root, batch.changeset)));
+  }
+  invariant(appliedChangesets.length > 0, "MIGRATION_NOT_APPLIED", "No committed migration batch was found for final verification.", { taskId }, 3);
   const verified = [];
-  for (const operation of changeset.operations ?? []) {
+  for (const operation of appliedChangesets.flatMap((changeset) => changeset.operations ?? [])) {
     if (!String(operation.id).startsWith("import-")) continue;
     const reason = String(operation.reason ?? "");
     const match = reason.match(/^Copy reviewed source (.+); source sha256 ([a-f0-9]{64})\.$/u);

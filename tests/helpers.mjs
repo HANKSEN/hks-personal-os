@@ -50,6 +50,7 @@ export async function withSandbox(callback, options = {}) {
     delete process.env.POS_TEST_INTERFERE_PATH;
     delete process.env.POS_TEST_INTERFERE_CONTENT;
     delete process.env.POS_TEST_FAIL_WORKSPACE_UPGRADE_AFTER_MOVES;
+    delete process.env.POS_TEST_ELICITATION_TIMEOUT_MS;
     const marker = (await readFile(path.join(root, ".pos-test-fixture"), "utf8")).trim();
     if (marker !== runId) throw new Error("Refusing sandbox cleanup because the test marker changed.");
     const outsideAfter = await hashPath(outside);
@@ -72,7 +73,7 @@ export async function writeFixture(root, relative, content) {
   return absolute;
 }
 
-export async function createProposal(root, { goal, writeScope, operations, area, project }) {
+export async function createProposal(root, { goal, writeScope, operations, area, project, changeId, filename = "CHANGESET.json" }) {
   const run = await createRun(root, { goal, area, project, writeScope });
   const normalizedOperations = [];
   for (const operation of operations) {
@@ -88,11 +89,12 @@ export async function createProposal(root, { goal, writeScope, operations, area,
   const changeset = {
     schema: "pos.changeset.v1",
     taskId: run.taskId,
+    ...(changeId ? { changeId } : {}),
     summary: goal,
     writeScope,
     operations: normalizedOperations,
   };
-  const relative = `${run.run}/CHANGESET.json`;
+  const relative = `${run.run}/${filename}`;
   await writeJsonAtomic(resolveInside(root, relative), changeset);
   return { ...run, changeset, changesetPath: relative };
 }

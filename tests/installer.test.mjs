@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { lstat, mkdir, mkdtemp, readFile, readlink, rm, symlink, writeFile } from "node:fs/promises";
+import { chmod, lstat, mkdir, mkdtemp, readFile, readlink, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -83,6 +83,50 @@ test("installer creates a stable Skill-first package without a global CLI by def
     assert.equal(secondPlan.versionInstall.action, "reuse");
     assert.equal(secondPlan.binaries.length, 0);
     assert.equal(secondPlan.skills.every((item) => item.action === "reuse"), true);
+  });
+});
+
+test("installer enables supported interactive approval by default and records the result", async () => {
+  await withInstallerSandbox(async ({ base, home, dataDir, binDir }) => {
+    const fakeHost = path.join(base, "codex");
+    const calls = path.join(base, "host-calls.jsonl");
+    await writeFile(fakeHost, `#!/usr/bin/env node\nimport { appendFileSync } from "node:fs";\nconst args=process.argv.slice(2);\nif(args[0]==="mcp"&&args[1]==="get"){process.stderr.write("No MCP server found\\n");process.exit(1);}\nappendFileSync(${JSON.stringify(calls)}, JSON.stringify(args)+"\\n");\n`);
+    await chmod(fakeHost, 0o755);
+    const result = await installPackage({
+      home,
+      dataDir,
+      binDir,
+      agent: "codex",
+      hostCommands: { codex: fakeHost },
+      yes: true,
+    });
+    assert.deepEqual(result.interactiveApproval.enabled, ["codex"]);
+    assert.equal(result.integrations[0].action, "enabled");
+    const invocation = JSON.parse((await readFile(calls, "utf8")).trim());
+    assert.deepEqual(invocation.slice(0, 4), ["mcp", "add", "hks-personal-os", "--"]);
+    assert.equal(invocation.at(-1), path.join(home, ".codex", "skills", "personal-os", "scripts", "mcp-server.mjs"));
+    const state = JSON.parse(await readFile(result.statePath, "utf8"));
+    assert.deepEqual(state.interactiveApproval.enabled, ["codex"]);
+  });
+});
+
+test("installer can opt out of interactive approval without invoking the host", async () => {
+  await withInstallerSandbox(async ({ base, home, dataDir, binDir }) => {
+    const fakeHost = path.join(base, "codex");
+    await writeFile(fakeHost, "#!/usr/bin/env node\nprocess.exit(99);\n");
+    await chmod(fakeHost, 0o755);
+    const result = await installPackage({
+      home,
+      dataDir,
+      binDir,
+      agent: "codex",
+      hostCommands: { codex: fakeHost },
+      noInteractiveApproval: true,
+      yes: true,
+    });
+    assert.equal(result.integrations[0].action, "skipped");
+    assert.deepEqual(result.interactiveApproval.enabled, []);
+    assert.equal(result.interactiveApproval.fallback, "explicit-text-confirmation");
   });
 });
 

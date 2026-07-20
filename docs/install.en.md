@@ -33,7 +33,9 @@ The Agent should continue through installation, workspace choice, initialization
 npx --yes --package=github:HANKSEN/hks-personal-os personal-os setup --agent auto
 ```
 
-The interactive setup asks for installation approval, journey, and exact workspace path. By default it installs a versioned package and Skill entry, but no global CLI and no PATH change.
+The interactive setup asks for installation approval, journey, and exact workspace path. By default it installs a versioned package and Skill entry, but no global CLI and no PATH change. It also detects supported Codex and Claude Code host commands and, when registration is safe, includes the local interactive-approval MCP adapter in the reviewed install plan.
+
+When enabled, a new Agent session can render **Approve**, **Revise**, **Reject**, and **Cancel** controls for an immutable Changeset proposal. If the host does not support form elicitation or registration fails, the Skill remains usable and fails closed to an exact proposal-ID text confirmation. Use `--no-interactive-approval` to opt out. A same-name unrelated MCP server is never overwritten.
 
 No-write structured preview:
 
@@ -90,6 +92,6 @@ The second command intentionally stops after software verification.
 
 ## Successful result
 
-Expect the result to include installed version, Skill paths, `embeddedRuntime`, default `globalCliInstalled: false`, and—after initialization—`health.healthy: true` plus `START_HERE.md`. Some hosts require a new Agent session to discover a newly installed Skill.
+Expect the result to include installed version, Skill paths, `embeddedRuntime`, default `globalCliInstalled: false`, `interactiveApproval`, and—after initialization—`health.healthy: true` plus `START_HERE.md`. Some hosts require a new Agent session to discover a newly installed Skill and MCP adapter.
 
 The installer refuses unrelated collisions, reuses a valid same-version package, and never removes a Personal OS data root. Existing users should follow the previewable, rollback-capable [update guide](update.en.md) and `AGENT_UPDATE.md` instead of overwriting an installed version. Continue with the [first-use guide](first-run.en.md) or the [existing-directory guide](existing-directory.en.md).

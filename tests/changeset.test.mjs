@@ -4,7 +4,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { applyChangeset, planChangeset, undoTask } from "../scripts/lib/changeset.mjs";
-import { exists, hashPath, readJson, sha256File } from "../scripts/lib/io.mjs";
+import { exists, hashPath, readJson, sha256File, writeJsonAtomic } from "../scripts/lib/io.mjs";
 import { withSandbox, createProposal, writeFixture } from "./helpers.mjs";
 
 test("previews without side effects, applies a create, and undoes it", async () => {
@@ -282,5 +282,107 @@ test("audits empty apply refusals without mutating formal files", async () => {
     await assert.rejects(() => applyChangeset(root, `${run.run}/CHANGESET.json`, { yes: true }), (error) => error.code === "EMPTY_CHANGESET");
     const audit = await readFile(path.join(root, ".pos", "audit.jsonl"), "utf8");
     assert.match(audit, /"code":"EMPTY_CHANGESET"/u);
+  });
+});
+
+test("supports multiple independently undoable change batches under one Task", async () => {
+  await withSandbox(async ({ root }) => {
+    const first = await createProposal(root, {
+      goal: "分批归档合成资产",
+      changeId: "batch-core",
+      writeScope: ["20_Areas/示例领域/Knowledge/**"],
+      operations: [{ id: "core", action: "create", path: "20_Areas/示例领域/Knowledge/core.md", sourceContent: "# Core\n", reason: "first batch" }],
+    });
+    await applyChangeset(root, first.changesetPath, { yes: true });
+
+    const secondSource = `${first.run}/proposed/dataset.md`;
+    await writeFixture(root, secondSource, "# Dataset\n");
+    const secondPath = `${first.run}/CHANGESET_DATASET.json`;
+    await writeJsonAtomic(path.join(root, secondPath), {
+      schema: "pos.changeset.v1",
+      taskId: first.taskId,
+      changeId: "batch-dataset",
+      summary: "第二批",
+      writeScope: ["20_Areas/示例领域/Knowledge/**"],
+      operations: [{ id: "dataset", action: "create", path: "20_Areas/示例领域/Knowledge/dataset.md", source: secondSource, reason: "second batch" }],
+    });
+    const second = await applyChangeset(root, secondPath, { yes: true });
+    assert.equal(second.undoId, "batch-dataset");
+    assert.equal(await exists(path.join(root, ".pos/history/batch-core/manifest.json")), true);
+    assert.equal(await exists(path.join(root, ".pos/history/batch-dataset/manifest.json")), true);
+
+    await undoTask(root, "batch-dataset", { yes: true });
+    assert.equal(await exists(path.join(root, "20_Areas/示例领域/Knowledge/core.md")), true);
+    assert.equal(await exists(path.join(root, "20_Areas/示例领域/Knowledge/dataset.md")), false);
+    await undoTask(root, "batch-core", { yes: true });
+    assert.equal(await exists(path.join(root, "20_Areas/示例领域/Knowledge/core.md")), false);
+  });
+});
+
+test("a duplicate batch refusal cannot delete the committed batch history", async () => {
+  await withSandbox(async ({ root }) => {
+    const first = await createProposal(root, {
+      goal: "验证批次历史隔离",
+      changeId: "same-batch",
+      writeScope: ["20_Areas/示例领域/Knowledge/**"],
+      operations: [{ id: "first", action: "create", path: "20_Areas/示例领域/Knowledge/first-batch.md", sourceContent: "# First\n", reason: "first" }],
+    });
+    await applyChangeset(root, first.changesetPath, { yes: true });
+    const manifestPath = path.join(root, ".pos/history/same-batch/manifest.json");
+    const beforeManifest = await sha256File(manifestPath);
+
+    const source = `${first.run}/proposed/duplicate.md`;
+    await writeFixture(root, source, "# Duplicate\n");
+    const duplicatePath = `${first.run}/CHANGESET_DUPLICATE.json`;
+    await writeJsonAtomic(path.join(root, duplicatePath), {
+      schema: "pos.changeset.v1",
+      taskId: first.taskId,
+      changeId: "same-batch",
+      summary: "重复批次",
+      writeScope: ["20_Areas/示例领域/Knowledge/**"],
+      operations: [{ id: "duplicate", action: "create", path: "20_Areas/示例领域/Knowledge/duplicate.md", source, reason: "must reject" }],
+    });
+    await assert.rejects(() => applyChangeset(root, duplicatePath, { yes: true }), (error) => error.code === "CHANGE_ALREADY_APPLIED");
+    assert.equal(await sha256File(manifestPath), beforeManifest);
+    assert.equal(await exists(path.join(root, "20_Areas/示例领域/Knowledge/duplicate.md")), false);
+    await undoTask(root, "same-batch", { yes: true });
+    assert.equal(await exists(path.join(root, "20_Areas/示例领域/Knowledge/first-batch.md")), false);
+  });
+});
+
+test("opaque-copy preserves a staged file larger than the text-content limit", async () => {
+  await withSandbox(async ({ root }) => {
+    const candidate = await createProposal(root, {
+      goal: "原样归档大型合成数据",
+      changeId: "large-copy",
+      writeScope: ["30_Resources/**"],
+      operations: [{ id: "large", action: "create", path: "30_Resources/large-synthetic.jsonl", sourceContent: "placeholder", reason: "large byte-preserving copy" }],
+    });
+    const source = path.join(root, candidate.changeset.operations[0].source);
+    await writeFile(source, Buffer.alloc(33 * 1024 * 1024, 0x61));
+    candidate.changeset.operations[0].mode = "opaque-copy";
+    await writeJsonAtomic(path.join(root, candidate.changesetPath), candidate.changeset);
+
+    const preview = await planChangeset(root, candidate.changesetPath);
+    assert.equal(preview.operations[0].content, null);
+    assert.equal(preview.operations[0].sourceSize, 33 * 1024 * 1024);
+    assert.match(preview.operations[0].diff, /^OPAQUE COPY/u);
+    const applied = await applyChangeset(root, candidate.changesetPath, { yes: true });
+    const destination = path.join(root, "30_Resources/large-synthetic.jsonl");
+    assert.equal(await sha256File(destination), await sha256File(source));
+    await undoTask(root, applied.undoId, { yes: true });
+    assert.equal(await exists(destination), false);
+  });
+});
+
+test("large single-line text creates a bounded review diff", async () => {
+  await withSandbox(async ({ root }) => {
+    const candidate = await createProposal(root, {
+      goal: "验证面板载荷上限",
+      writeScope: ["30_Resources/**"],
+      operations: [{ id: "line", action: "create", path: "30_Resources/one-line.jsonl", sourceContent: "x".repeat(1024 * 1024), reason: "bounded preview" }],
+    });
+    const preview = await planChangeset(root, candidate.changesetPath);
+    assert.ok(preview.operations[0].diff.length < 20_000);
   });
 });
