@@ -5,13 +5,17 @@ import { createInterface } from "node:readline";
 import { approvalStatus, createApprovalProposal, decideApproval } from "./lib/approval.mjs";
 import { errorPayload } from "./lib/errors.mjs";
 
-const SERVER_INFO = { name: "hks-personal-os", version: "1.2.2" };
+const SERVER_INFO = { name: "hks-personal-os", version: "1.2.7" };
 const pending = new Map();
 let nextRequestId = 1;
 let clientCapabilities = {};
+let clientInfo = {};
 
 function send(message) {
-  process.stdout.write(`${JSON.stringify(message)}\n`);
+  const encoded = JSON.stringify(message)
+    .replaceAll("\u2028", "\\u2028")
+    .replaceAll("\u2029", "\\u2029");
+  process.stdout.write(`${encoded}\n`);
 }
 
 function toolResult(payload, { isError = false } = {}) {
@@ -54,18 +58,10 @@ function proposalCard(proposal) {
   };
 }
 
-function markdownInline(value) {
-  return String(value ?? "")
-    .replace(/[\r\n]+/gu, " ")
-    .replaceAll("\\", "\\\\")
-    .replaceAll("`", "\\`")
-    .replaceAll("|", "\\|")
-    .trim();
-}
-
-function markdownCode(value) {
-  const safe = String(value ?? "").replace(/[\r\n]+/gu, " ").replaceAll("`", "ˋ").trim();
-  return `\`${safe}\``;
+function singleLine(value, maxLength = 240) {
+  const text = String(value ?? "").replace(/[\r\n\t\u2028\u2029]+/gu, " ").replace(/\s{2,}/gu, " ").trim();
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, Math.max(1, maxLength - 1)).trimEnd()}…`;
 }
 
 function localizedRisk(risk) {
@@ -76,9 +72,23 @@ function localizedAction(action) {
   return ({ create: "新建", update: "更新", move: "移动", archive: "归档", trash: "移入回收区" })[action] ?? action;
 }
 
+function actionSummary(operations) {
+  const order = ["create", "update", "move", "archive", "trash"];
+  const counts = new Map();
+  for (const operation of operations) counts.set(operation.action, (counts.get(operation.action) ?? 0) + 1);
+  return order
+    .filter((action) => counts.has(action))
+    .map((action) => `${localizedAction(action)} ${counts.get(action)} 项`)
+    .join("｜");
+}
+
 function hasFormElicitation() {
   const elicitation = clientCapabilities?.elicitation;
   return elicitation !== undefined && (elicitation?.form !== undefined || Object.keys(elicitation ?? {}).length === 0);
+}
+
+function isCodexClient() {
+  return /codex/iu.test(`${clientInfo?.name ?? ""} ${clientInfo?.title ?? ""}`);
 }
 
 function elicitationTimeoutMs() {
@@ -111,50 +121,68 @@ function sendClientRequest(method, params, timeoutMs = elicitationTimeoutMs()) {
 }
 
 function elicitationMessage(card) {
-  const rows = card.operations.map((item, index) => {
-    const route = item.from
-      ? `${markdownCode(item.from)} → ${markdownCode(item.path)}`
-      : markdownCode(item.path);
-    const protectedNote = item.protected ? "\n   - 受保护内容：**是**" : "";
-    return `${index + 1}. **${localizedAction(item.action)}**：${route}${protectedNote}`;
+  const rows = card.operations.flatMap((item, index) => {
+    const number = String(index + 1).padStart(2, "0");
+    const details = [
+      `【变更 ${number}】${localizedAction(item.action)}`,
+      `目标：${singleLine(item.path, 2000)}`,
+    ];
+    if (item.from) details.push(`来源：${singleLine(item.from, 2000)}`);
+    if (item.reason) details.push(`原因：${singleLine(item.reason)}`);
+    if (item.protected) details.push("受保护内容：是");
+    return details;
   });
   const scope = card.writeScope.length > 0
-    ? card.writeScope.map((item) => `- ${markdownCode(item)}`).join("\n")
-    : "- 未声明";
+    ? card.writeScope.map((item, index) => `${String(index + 1).padStart(2, "0")}｜${singleLine(item, 2000)}`)
+    : ["未声明"];
   return [
-    "# Hks Personal OS · 变更审批",
+    "Hks Personal OS · 变更审批",
     "",
-    `> ${markdownInline(card.title)}`,
+    "【本次计划】",
+    `目的：${singleLine(card.title) || "Personal OS 文件变更"}`,
+    `动作：${actionSummary(card.operations) || "未声明"}`,
+    `风险：${localizedRisk(card.risk)}`,
+    `受保护内容：${card.protectedChanges ? "是" : "否"}`,
+    `操作总数：${card.operationCount} 项`,
     "",
-    "## 审批摘要",
-    "",
-    "| 项目 | 内容 |",
-    "|---|---|",
-    `| 提案 ID | ${markdownCode(card.proposalId)} |`,
-    `| 任务 ID | ${markdownCode(card.taskId)} |`,
-    `| 变更批次 / Undo ID | ${markdownCode(card.changeId)} |`,
-    `| 风险等级 | **${localizedRisk(card.risk)}** |`,
-    `| 文件操作 | **${card.operationCount}** 项 |`,
-    `| 受保护内容 | **${card.protectedChanges ? "是" : "否"}** |`,
-    "",
-    "## 文件变更",
-    "",
+    "【文件变更】",
     ...rows,
     "",
-    "## 允许写入范围",
+    "【允许写入范围】",
+    ...scope,
     "",
-    scope,
-    "",
-    "## 完整性校验",
-    "",
-    `- 计划摘要：${markdownCode(card.planDigest)}`,
-    "- 批准仅适用于上述计划；内容变化后必须重新预览。",
-  ].join("\n");
+    "【审批边界】",
+    `批准后只执行以上 ${card.operationCount} 项操作。`,
+    `计划校验：${singleLine(card.planDigest).slice(0, 12)}…`,
+    "如果内容、路径或写入范围变化，必须重新预览和审批。",
+    "完整提案编号与校验信息已保存在 Personal OS 审批记录中。",
+  // Codex's native MCP form collapses ordinary LF characters because the
+  // message is rendered as normal-flow text. U+2028 has Unicode line-break
+  // class BK, so browsers preserve it as a mandatory visual line break even
+  // when CSS white-space is `normal`.
+  ].join("\u2028");
 }
 
 async function reviewProposal(args) {
   const proposal = await approvalStatus(args.root, args.proposalId);
   const card = proposalCard(proposal);
+  if (isCodexClient()) {
+    return toolResult({
+      schema: "pos.interaction-handoff.v1",
+      interactive: false,
+      reason: "codex-native-form-does-not-preserve-structured-layout",
+      preferredInteraction: "codex-inline-visual",
+      card,
+      approvalVisual: {
+        command: "approval-visual",
+        root: args.root,
+        proposalId: proposal.proposalId,
+        outputRequirement: "Write a new .html fragment inside the current Codex thread visualization directory, then emit its codex-inline-vis directive.",
+      },
+      next: "Render the proposal with the Personal OS approval-visual command. Do not open Codex native MCP form elicitation for this proposal.",
+      confirmationPhrase: proposal.confirmationPhrase,
+    });
+  }
   if (!hasFormElicitation()) {
     return toolResult({
       schema: "pos.interaction-fallback.v1",
@@ -168,8 +196,8 @@ async function reviewProposal(args) {
   const properties = {
     decision: {
       type: "string",
-      title: "操作决定",
-      description: "请审阅上方文件路径和写入范围后选择。",
+      title: `审批 ${card.operationCount} 项文件变更（${localizedRisk(card.risk)}风险）`,
+      description: "请核对上方【文件变更】和【允许写入范围】。批准只适用于当前计划。",
       oneOf: [
         { const: "approve", title: "批准并写入" },
         { const: "revise", title: "要求修改计划" },
@@ -250,7 +278,7 @@ const TOOLS = [
   },
   {
     name: "personal_os_review",
-    description: "Show an interactive approval request for one immutable proposal and apply only if the user explicitly approves it.",
+    description: "Review one immutable proposal. Codex clients receive a structured inline-visual handoff because native MCP forms do not preserve reviewable layout; other compatible clients may use native form elicitation.",
     inputSchema: {
       type: "object",
       properties: {
@@ -283,7 +311,12 @@ async function callTool(params) {
   const args = params?.arguments ?? {};
   if (name === "personal_os_preview") {
     const proposal = await createApprovalProposal(args.root, args.changeset);
-    return toolResult({ interactive: hasFormElicitation(), card: proposalCard(proposal), proposal });
+    return toolResult({
+      interactive: !isCodexClient() && hasFormElicitation(),
+      preferredInteraction: isCodexClient() ? "codex-inline-visual" : (hasFormElicitation() ? "mcp-form-elicitation" : "explicit-text-confirmation"),
+      card: proposalCard(proposal),
+      proposal,
+    });
   }
   if (name === "personal_os_review") return reviewProposal(args);
   if (name === "personal_os_status") {
@@ -296,11 +329,12 @@ async function callTool(params) {
 async function handleRequest(message) {
   if (message.method === "initialize") {
     clientCapabilities = message.params?.capabilities ?? {};
+    clientInfo = message.params?.clientInfo ?? {};
     return {
       protocolVersion: message.params?.protocolVersion ?? "2025-06-18",
       capabilities: { tools: { listChanged: false } },
       serverInfo: SERVER_INFO,
-      instructions: "Preview first. Use interactive review when available. Never apply a proposal after its digest changes.",
+      instructions: "Preview first. In Codex, render approval-visual instead of native form elicitation. In other clients, use interactive review when available. Never apply a proposal after its digest changes.",
     };
   }
   if (message.method === "ping") return {};

@@ -54,7 +54,7 @@ npx --yes --package=github:HANKSEN/hks-personal-os personal-os setup --agent aut
 
 ### 交互审批的默认行为
 
-安装器会检测 Codex 和 Claude Code 的本地宿主命令。能够安全注册 MCP 适配器时，它会在安装计划中显示精确动作，经过安装确认后默认开启。新会话中，Agent 就可在支持的聊天界面展示“批准 / 要求修改 / 拒绝 / 取消”。
+安装器会检测 Codex 和 Claude Code 的本地宿主命令。能够安全注册 MCP 适配器时，它会在安装计划中显示精确动作，经过安装确认后默认开启。新会话中，Codex 使用对话内结构化审批卡；其他兼容宿主仅在原生表单能保持可审阅布局时展示“批准 / 要求修改 / 拒绝 / 取消”。
 
 - 检测不到或注册失败：Skill 仍正常安装，改用绑定提案 ID 的明确文本确认；
 - 不想自动配置：添加 `--no-interactive-approval`；

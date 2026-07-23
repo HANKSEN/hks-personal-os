@@ -35,7 +35,7 @@ npx --yes --package=github:HANKSEN/hks-personal-os personal-os setup --agent aut
 
 The interactive setup asks for installation approval, journey, and exact workspace path. By default it installs a versioned package and Skill entry, but no global CLI and no PATH change. It also detects supported Codex and Claude Code host commands and, when registration is safe, includes the local interactive-approval MCP adapter in the reviewed install plan.
 
-When enabled, a new Agent session can render **Approve**, **Revise**, **Reject**, and **Cancel** controls for an immutable Changeset proposal. If the host does not support form elicitation or registration fails, the Skill remains usable and fails closed to an exact proposal-ID text confirmation. Use `--no-interactive-approval` to opt out. A same-name unrelated MCP server is never overwritten.
+When enabled, a new Codex session renders **Approve**, **Revise**, **Reject**, and **Cancel** through the structured in-conversation approval card; the Codex native MCP form is deliberately not used for decision-critical content. Another compatible host may use its native MCP form only when it preserves a reviewable layout. If the host does not support either interaction or registration fails, the Skill remains usable and fails closed to an exact proposal-ID text confirmation. Use `--no-interactive-approval` to opt out. A same-name unrelated MCP server is never overwritten.
 
 No-write structured preview:
 

@@ -3,6 +3,7 @@
 import { applyChangeset, publicPlan, undoTask } from "./lib/changeset.mjs";
 import { auditExistingDirectory } from "./lib/audit.mjs";
 import { approvalStatus, createApprovalProposal, decideApproval } from "./lib/approval.mjs";
+import { writeApprovalVisual } from "./lib/approval-visual.mjs";
 import { retrieveContext } from "./lib/context.mjs";
 import { diagnose } from "./lib/doctor.mjs";
 import { errorPayload, PosError } from "./lib/errors.mjs";
@@ -23,6 +24,7 @@ Usage:
   pos propose <root> <changeset>
   pos decide <root> <proposal-id> --decision approve|revise|reject|cancel [--approve-protected]
   pos approval-status <root> <proposal-id>
+  pos approval-visual <root> <proposal-id> --output <absolute-html-path>
   pos undo <root> <undo-id> --yes [--force]
   pos doctor <root>
   pos audit <target-root> --source <existing-root> --host codex --yes-read
@@ -36,7 +38,7 @@ All roots must be explicit. No command searches parent directories. Previewing a
 const HELP_RESULT = {
   schema: "pos.help.v1",
   usage: "pos <command> [arguments] [options]",
-  commands: ["init", "index", "context", "run", "apply", "propose", "decide", "approval-status", "undo", "doctor", "audit", "migrate-stage", "migrate-finalize", "workspace-upgrade", "help"],
+  commands: ["init", "index", "context", "run", "apply", "propose", "decide", "approval-status", "approval-visual", "undo", "doctor", "audit", "migrate-stage", "migrate-finalize", "workspace-upgrade", "help"],
   text: HELP,
 };
 
@@ -148,6 +150,9 @@ async function main() {
     });
   } else if (command === "approval-status") {
     result = await approvalStatus(positional[0], positional[1]);
+  } else if (command === "approval-visual") {
+    if (!options.output) throw new PosError("OUTPUT_REQUIRED", "Approval visual requires --output <absolute-html-path>.", undefined, 2);
+    result = await writeApprovalVisual(positional[0], positional[1], options.output);
   } else if (command === "undo") {
     result = await undoTask(positional[0], positional[1], { yes: options.yes === true, force: options.force === true });
   } else if (command === "doctor") {

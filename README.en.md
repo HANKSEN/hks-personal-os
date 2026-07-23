@@ -2,9 +2,9 @@
 
 [简体中文](README.md) · [繁體中文](README.zh-TW.md) · **English**
 
-[![version](https://img.shields.io/badge/version-1.2.2-1f6feb?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/releases/tag/v1.2.2)
+[![version](https://img.shields.io/badge/version-1.2.7-1f6feb?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/releases/tag/v1.2.7)
 [![Skill](https://img.shields.io/badge/Skill-Personal_OS-6f42c1?style=flat-square)](SKILL.md)
-[![tests](https://img.shields.io/badge/tests-87_passing-2da44e?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/tree/main/tests)
+[![tests](https://img.shields.io/badge/tests-100_passing-2da44e?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/tree/main/tests)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A520-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![software license](https://img.shields.io/badge/software-AGPL--3.0--or--later-663399?style=flat-square)](LICENSE)
 [![docs license](https://img.shields.io/badge/docs-CC_BY--SA_4.0-fb782f?style=flat-square)](LICENSE-DOCS.md)
@@ -40,7 +40,7 @@ npx --yes --package=github:HANKSEN/hks-personal-os personal-os setup --agent aut
 
 Interactive setup covers installation, journey selection, path confirmation, initialization, and onboarding. Add `--with-cli` only when terminal or automation access is explicitly needed.
 
-When setup detects a supported Codex or Claude Code host integration, the reviewed install plan enables the interactive approval adapter by default. Compatible chat clients can then show **Approve / Revise / Reject / Cancel** controls; other clients fail closed to an exact proposal-ID text confirmation. Use `--no-interactive-approval` to opt out.
+When setup detects a supported Codex or Claude Code host integration, the reviewed install plan enables the interactive approval adapter by default. Codex uses the structured in-conversation approval card; another host uses a native MCP panel only when it preserves a reviewable layout. Other clients fail closed to an exact proposal-ID text confirmation. Use `--no-interactive-approval` to opt out.
 
 ### Updating an existing installation
 
@@ -102,6 +102,16 @@ V1.2.0 turns the human gate into an interactive approval without weakening it. T
 
 V1.2.2 hardens the workflow with evidence from a real archive run. One Task can now contain multiple independently approved and undoable Changesets, and a failed second batch cannot remove the first batch's recovery history. Large datasets can be copied byte-for-byte while the panel displays only path, size, and hash; an elapsed panel remains awaiting approval and can be reopened safely.
 
+V1.2.3 fixes approval readability in native confirmation windows that display MCP messages as plain text rather than rendering Markdown. The approval summary now uses host-independent labeled sections for the plan, exact file changes, allowed write scope, and approval boundary. Those labels remain legible even when a host collapses line breaks, while complete IDs and integrity records stay in the persisted proposal instead of crowding the decision surface.
+
+V1.2.4 attempted to improve Codex native MCP line breaks with Unicode mandatory separators, but host components may still normalize them; this is not treated as a stable cross-version rendering guarantee.
+
+V1.2.5 no longer depends on how Codex's native form happens to normalize whitespace. Codex desktop now prefers an in-conversation structured approval card with summary metrics, a file-operation table, allowed write scope, and Confirm / Revise / Reject / Cancel controls. Buttons only return a decision message bound to the proposal ID and full plan digest; the runtime revalidates both before any write. Other Agent hosts continue to use native MCP approval or exact-text confirmation.
+
+V1.2.6 fixes a newline-escaping bug in the generated approval-card script and adds a post-generation JavaScript parser test so invalid interaction code cannot reach conversation rendering.
+
+V1.2.7 explicitly stops using Codex native MCP forms for structured approval content. Codex uses an in-conversation approval card for the plan, files, scope, and risk; MCP remains responsible for immutable proposals, status, digest validation, and deterministic writes. An accidental native-review call now returns a fail-closed visual handoff instead of opening an unreadable form.
+
 AI drafts freely inside an isolated Run. Durable changes must pass through a reviewable Changeset, deterministic validation, human approval, audit recording, and recoverable Apply / Undo behavior.
 
 ## Quick start
@@ -118,13 +128,13 @@ For existing files, ask for a read-only audit and report before any copy. See [f
 
 ## Current status
 
-- current stable release v1.2.2; software under AGPL-3.0-or-later, original explanatory documentation under CC BY-SA 4.0, with a commercial-license path;
+- current stable release v1.2.7; software under AGPL-3.0-or-later, original explanatory documentation under CC BY-SA 4.0, with a commercial-license path;
 - the published `v1.0.0` remains available under its irrevocable MIT license;
 - automated coverage for Skill-first install, package integrity, atomic update and rollback, initialization, read-only audit, copy migration, multi-host isolation, legacy-workspace upgrade, Apply / Undo, and failure recovery;
 - bounded retrieval verified with 10,000 synthetic files;
 - recovery, traversal, symlink, prompt-injection, and history-integrity coverage;
 - independently verified on macOS; Linux and Windows remain compatibility targets;
-- reviewed copy-to-new-root migration and host-native approval panels; no default in-place reorganization, standalone full GUI, cloud sync, vector database, permanent deletion, or automatic external actions.
+- reviewed copy-to-new-root migration plus Codex in-conversation approval cards or compatible host-native panels; no default in-place reorganization, standalone full GUI, cloud sync, vector database, permanent deletion, or automatic external actions.
 
 ## Documentation
 

@@ -1,6 +1,6 @@
 {
   "name": "personal-os",
-  "version": "1.2.2",
+  "version": "1.2.7",
   "description": "Local-first Hks Personal OS Skill with an embedded deterministic runtime for safe AI collaboration.",
   "type": "module",
   "bin": {

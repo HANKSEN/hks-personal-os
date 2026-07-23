@@ -4,6 +4,7 @@ import { createInterface } from "node:readline";
 import path from "node:path";
 import test from "node:test";
 
+import { approvalStatus } from "../scripts/lib/approval.mjs";
 import { hashPath } from "../scripts/lib/io.mjs";
 import { createProposal, withSandbox } from "./helpers.mjs";
 
@@ -66,14 +67,21 @@ test("MCP review elicits an interactive decision and applies the bound proposal"
       client.send({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "personal_os_review", arguments: { root, proposalId } } });
       const elicitation = await client.waitFor((item) => item.method === "elicitation/create");
       assert.match(elicitation.params.message, /Interactive MCP approval/u);
-      assert.match(elicitation.params.message, /^# Hks Personal OS · 变更审批$/mu);
-      assert.match(elicitation.params.message, /^## 审批摘要$/mu);
-      assert.match(elicitation.params.message, /^\| 项目 \| 内容 \|$/mu);
-      assert.match(elicitation.params.message, /^## 文件变更$/mu);
-      assert.match(elicitation.params.message, /\*\*新建\*\*：`20_Areas\/示例领域\/Knowledge\/mcp-approved\.md`/u);
-      assert.match(elicitation.params.message, /^## 允许写入范围$/mu);
-      assert.match(elicitation.params.message, /^## 完整性校验$/mu);
-      assert.equal(elicitation.params.requestedSchema.properties.decision.title, "操作决定");
+      assert.doesNotMatch(elicitation.params.message, /[\r\n]/u);
+      assert.ok(elicitation.params.message.includes("\u2028"), "approval message must use mandatory Unicode line separators");
+      const visualLines = elicitation.params.message.split("\u2028");
+      for (const expectedLine of [
+        "Hks Personal OS · 变更审批",
+        "【本次计划】",
+        "动作：新建 1 项",
+        "【文件变更】",
+        "【变更 01】新建",
+        "目标：20_Areas/示例领域/Knowledge/mcp-approved.md",
+        "【允许写入范围】",
+        "【审批边界】",
+      ]) assert.ok(visualLines.includes(expectedLine), `missing visual approval line: ${expectedLine}`);
+      assert.doesNotMatch(elicitation.params.message, /#{1,6}\s|\*\*(?:新建|更新|移动|归档)|`|\|---\|/u);
+      assert.equal(elicitation.params.requestedSchema.properties.decision.title, "审批 1 项文件变更（低风险）");
       client.send({ jsonrpc: "2.0", id: elicitation.id, result: { action: "accept", content: { decision: "approve", note: "approved in synthetic panel" } } });
       const reviewed = await client.waitFor((item) => item.id === 3);
       assert.equal(reviewed.result.structuredContent.applied, true);
@@ -103,6 +111,37 @@ test("MCP review fails closed with a text fallback when elicitation is unavailab
       assert.equal(reviewed.result.structuredContent.interactive, false);
       assert.match(reviewed.result.structuredContent.next, new RegExp(`APPROVE ${proposalId}`, "u"));
       assert.equal(await hashPath(path.join(root, "20_Areas", "示例领域", "Knowledge", "fallback.md")), null);
+    } finally {
+      await client.stop();
+    }
+  });
+});
+
+test("Codex receives an inline-visual handoff instead of an unreadable native form", async () => {
+  await withSandbox(async ({ root }) => {
+    const candidate = await createProposal(root, {
+      goal: "Codex inline approval handoff",
+      writeScope: ["20_Areas/示例领域/Knowledge/**"],
+      operations: [{ id: "op-001", action: "create", path: "20_Areas/示例领域/Knowledge/codex-handoff.md", sourceContent: "# Codex handoff\n", reason: "Native form layout is not reviewable" }],
+    });
+    const client = startClient();
+    try {
+      client.send({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-11-25", capabilities: { elicitation: { form: {} } }, clientInfo: { name: "Codex Desktop", version: "1" } } });
+      await client.waitFor((item) => item.id === 1);
+      client.send({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "personal_os_preview", arguments: { root, changeset: candidate.changesetPath } } });
+      const preview = await client.waitFor((item) => item.id === 2);
+      assert.equal(preview.result.structuredContent.interactive, false);
+      assert.equal(preview.result.structuredContent.preferredInteraction, "codex-inline-visual");
+      const proposalId = preview.result.structuredContent.proposal.proposalId;
+
+      client.send({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "personal_os_review", arguments: { root, proposalId } } });
+      const reviewed = await client.waitFor((item) => item.id === 3);
+      assert.equal(reviewed.result.structuredContent.schema, "pos.interaction-handoff.v1");
+      assert.equal(reviewed.result.structuredContent.reason, "codex-native-form-does-not-preserve-structured-layout");
+      assert.equal(reviewed.result.structuredContent.preferredInteraction, "codex-inline-visual");
+      assert.equal(reviewed.result.structuredContent.approvalVisual.proposalId, proposalId);
+      assert.equal((await approvalStatus(root, proposalId)).status, "awaiting_approval");
+      assert.equal(await hashPath(path.join(root, "20_Areas", "示例领域", "Knowledge", "codex-handoff.md")), null);
     } finally {
       await client.stop();
     }

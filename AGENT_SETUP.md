@@ -111,7 +111,8 @@ node <installed-skill-root>/scripts/pos.mjs migrate-stage <target-root> <migrati
 ```
 
 10. Preview the returned Changeset with the embedded runtime. Apply only after the user reviews source, target, reason, conflicts, and scope.
-    - Preferred interactive path: call `personal_os_preview`, then `personal_os_review`; the latter applies only the exact proposal after a panel decision.
+    - Codex interactive path: call `personal_os_preview`, generate `approval-visual`, and render it as a conversation-native inline card. Do not use Codex native `personal_os_review` as the decision surface; if called, follow its fail-closed visual handoff.
+    - Other compatible hosts: call `personal_os_preview`, then `personal_os_review` only when the host preserves a reviewable native form layout; the latter applies only the exact proposal after a panel decision.
     - Text fallback: run `propose`, require the exact `APPROVE <proposal-id>` phrase, then run `decide --decision approve`.
     - Legacy/manual path: `apply` without `--yes`, then add `--yes` only after explicit review.
     - If the reviewed batch creates a new Area or Project `CONTEXT.md`, explain that protected context is being created and add `--approve-protected` only after that separate approval.

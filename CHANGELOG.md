@@ -1,5 +1,42 @@
 # Changelog
 
+## 1.2.7 (2026-07-21)
+
+- Treat Codex native MCP form elicitation as unsuitable for decision-critical structured approval because the host may flatten or normalize message layout.
+- Route Codex MCP review calls to a fail-closed inline-visual handoff instead of opening the native form; no proposal decision or file write occurs during handoff.
+- Keep MCP responsible for immutable proposal preview, status, digest validation, and deterministic execution while the Codex conversation card owns the review presentation.
+- Preserve native MCP form elicitation for non-Codex clients that render it readably, with exact proposal-ID text confirmation as the final fallback.
+- Add transport-level regression coverage proving a Codex client cannot accidentally enter native elicitation and that its proposal remains awaiting approval.
+
+## 1.2.6 (2026-07-21)
+
+- Fix generated Codex approval-card JavaScript where an unescaped newline inside the follow-up prompt join expression caused `Document.write` to fail with `SyntaxError: Invalid or unexpected token`.
+- Add a parser-level regression assertion for every generated interaction script before release.
+- Regenerate the live conversation demo with valid JavaScript while preserving proposal binding and deterministic revalidation.
+
+## 1.2.5 (2026-07-21)
+
+- Add a Codex conversation-native approval visual with summary cards, an exact file-operation table, write scope, risk, digest, optional note, protected-Context confirmation, and four explicit decisions.
+- Make visual controls return a proposal-bound follow-up message through `window.openai.sendFollowUpMessage`; they never perform file writes directly.
+- Require the Agent to re-read approval state and verify the exact proposal ID, `awaiting_approval` status, and full plan digest before calling deterministic `decide`.
+- Add the `approval-visual` runtime command with explicit absolute output paths, no-overwrite behavior, HTML escaping, and refusal to render already-decided proposals.
+- Keep MCP form elicitation and exact proposal-ID text confirmation as cross-host fallbacks.
+- Add browser-rendered visual acceptance evidence and regression coverage for layout structure, button binding, injection escaping, overwrite refusal, and terminal-state refusal.
+
+## 1.2.4 (2026-07-21)
+
+- Use Unicode mandatory line separators in native MCP approval messages so Codex cannot collapse every approval section into one paragraph.
+- Sanitize imported summary text to keep user-supplied line separators from escaping the intended approval structure.
+- Add transport-level regression coverage for exact visual lines without relying on Markdown rendering.
+
+## 1.2.3 (2026-07-21)
+
+- Replace Markdown-dependent MCP approval messages with host-independent structured plain text.
+- Group decision-critical information into stable labeled sections: plan, exact file changes, allowed write scope, and approval boundary.
+- Keep full proposal/task identifiers in persisted approval records while showing only a short integrity digest in the decision surface.
+- Make the native decision-field title include operation count and risk, so the form remains informative even when the host collapses message whitespace.
+- Add regression coverage that verifies exact paths remain visible, generated Markdown formatting is absent, and section boundaries survive whitespace collapsing.
+
 ## 1.2.2 (2026-07-20)
 
 - Separate Task identity from batch-level `changeId` / `undoId`, allowing one Run to contain multiple independently reviewed, applied, and reversible Changesets.

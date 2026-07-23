@@ -103,7 +103,7 @@ export async function planHostIntegrations({
       serverArgs: [serverScript],
       serverScript,
       defaultEnabled: true,
-      interaction: "mcp-form-elicitation-with-text-fallback",
+      interaction: host === "codex" ? "codex-inline-visual-with-mcp-validation" : "mcp-form-elicitation-with-text-fallback",
       ...inspected,
     });
   }

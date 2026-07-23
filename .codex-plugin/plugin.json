@@ -1,6 +1,6 @@
 {
   "name": "personal-os",
-  "version": "1.2.2",
+  "version": "1.2.7",
   "description": "Route personal work into local context and apply reviewable changes safely.",
   "mcpServers": "./.mcp.json"
 }

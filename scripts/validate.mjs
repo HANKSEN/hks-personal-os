@@ -79,6 +79,7 @@ const required = [
   "scripts/mcp-server.mjs",
   "scripts/demo-approval.mjs",
   "scripts/lib/approval.mjs",
+  "scripts/lib/approval-visual.mjs",
   "scripts/lib/host-integration.mjs",
   "scripts/lib/package-integrity.mjs",
   "scripts/pos.mjs",
