@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "hks-personal-os": {
+      "command": "node",
+      "args": ["${CODEBUDDY_PLUGIN_ROOT}/scripts/mcp-server.mjs"]
+    }
+  }
+}

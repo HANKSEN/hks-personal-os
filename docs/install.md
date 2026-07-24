@@ -37,11 +37,22 @@ Agent 会连续完成：
 
 安装、初始化、旧目录读取、复制迁移和正式 Changeset Apply 是不同授权，不会因为第一次确认而自动放开后续权限。
 
-## 一行命令：交互式 Setup
+## 一行命令：网络正常的交互式 Setup
 
 ```bash
 npx --yes --package=github:HANKSEN/hks-personal-os personal-os setup --agent auto
 ```
+
+这条命令适合 GitHub 链路稳定、允许长时间联网命令的终端。`github:` 获取发生在安装器启动前；若 Agent 报 `137 / SIGKILL`，可能是网络、命令时限或内存限制，不能直接认定为代理配置问题。
+
+对 WorkBuddy、CodeBuddy、TRAE 等非交互式或命令时限不明确的 Agent，优先把“获取软件”和“初始化数据目录”拆开：
+
+```bash
+npx --yes --package=github:HANKSEN/hks-personal-os personal-os setup \
+  --agent auto --install-only --yes --json
+```
+
+安装完成后再由 Agent 在下一轮对话询问数据路径。若 GitHub 获取仍失败，使用小于 1 MiB、带 SHA-256 的 Release `.tgz` 或离线附件安装，详见[弱网、国内网络与离线安装](distribution.md)。
 
 终端会依次询问安装、工作空间模式和目标路径。默认创建：
 
@@ -50,7 +61,7 @@ npx --yes --package=github:HANKSEN/hks-personal-os personal-os setup --agent aut
 ~/.agents/skills/personal-os                     # 通用 Skill 入口
 ```
 
-如果已经存在 Codex 或 Claude Code 的用户配置目录，`--agent auto` 还会安装相应 Skill 入口。默认不会创建 `~/.local/bin/pos`，也不要求配置 `PATH`。
+`--agent auto` 会准备通用 Agents Skills 入口，并只为真实检测到的宿主增加适配。默认不会创建 `~/.local/bin/pos`，也不要求配置 `PATH`。
 
 ### 交互审批的默认行为
 
@@ -104,9 +115,21 @@ node scripts/install.mjs setup \
 | 通用 Agents Skills | `--agent generic` | `~/.agents/skills/personal-os` |
 | Codex | `--agent codex` | `~/.codex/skills/personal-os` |
 | Claude Code | `--agent claude` | `~/.claude/skills/personal-os` |
+| OpenClaw | `--agent openclaw` | `~/.openclaw/skills/personal-os` |
+| Hermes Agent | `--agent hermes` | `~/.hermes/skills/personal-os` |
+| WorkBuddy | `--agent workbuddy` | 插件清单 + `~/.agents/skills` 回退 |
+| CodeBuddy | `--agent codebuddy` | 插件清单 + `~/.agents/skills` 回退 |
+| TRAE / TRAE SOLO | `--agent trae` / `--agent trae-solo` | 通用 Skill 或宿主显式导入 |
+| Kimi / QCode / Qoder | 对应名称 | 通用 Skill 或明确的 `--skill-dir` |
 | 明确自定义宿主 | `--agent none --skill-dir <父目录>` | 用户或宿主明确提供的位置 |
 
-Personal OS 不猜测 WorkBuddy、QCode、Kimi 等不同版本的未公开目录。若宿主不能自动发现 Skill，但能读取文件和运行 Node.js，可以让 Agent 显式读取已安装版本中的 `SKILL.md` 和调用同包 `scripts/pos.mjs`；此时应说明这是兼容模式，不是假装原生发现成功。
+还接受 `cursor`、`windsurf`、`cline`、`roo-code`、`opencode`、`gemini-cli` 等通用适配参数。Personal OS 不猜测未公开的私有目录；若宿主不能自动发现 Skill，但能读取文件和运行 Node.js，可以让 Agent 显式读取已安装版本中的 `SKILL.md` 和调用同包 `scripts/pos.mjs`，并明确报告为兼容模式。完整等级见[Agent 兼容与安装适配](agent-compatibility.md)。
+
+离线、无写入诊断：
+
+```bash
+node scripts/install.mjs diagnose --agent auto --json
+```
 
 ## 全局 CLI：仅在需要时安装
 

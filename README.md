@@ -2,9 +2,9 @@
 
 **简体中文** · [繁體中文](README.zh-TW.md) · [English](README.en.md)
 
-[![version](https://img.shields.io/badge/version-1.2.7-1f6feb?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/releases/tag/v1.2.7)
+[![version](https://img.shields.io/badge/version-1.3.0-1f6feb?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/releases)
 [![Skill](https://img.shields.io/badge/Skill-Personal_OS-6f42c1?style=flat-square)](SKILL.md)
-[![tests](https://img.shields.io/badge/tests-100_passing-2da44e?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/tree/main/tests)
+[![tests](https://img.shields.io/badge/tests-108_passing-2da44e?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/tree/main/tests)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A520-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![software license](https://img.shields.io/badge/software-AGPL--3.0--or--later-663399?style=flat-square)](LICENSE)
 [![docs license](https://img.shields.io/badge/docs-CC_BY--SA_4.0-fb782f?style=flat-square)](LICENSE-DOCS.md)
@@ -19,7 +19,7 @@ Hks Personal OS 帮助 AI 实践者建立一套可以持续调用、复用和迭
 
 Personal OS 由 Markdown 文件系统、Agent Skill 和 Skill 内置的确定性本地运行时组成。它使用 PARA 管理物理位置，通过 `Knowledge / Experience / Principles / Artifacts / Data` 管理资产意义，并通过隔离 Run 与 Changeset 保护正式文件。全局 `pos` CLI 只是面向高级用户的可选入口，不是普通用户的安装前提。
 
-## 我是谁：韩克森（Hanksen）
+## 作者：**韩克森（Hanksen）**
 
 **个体认知复利体系的定义者与实践者：帮助个人和组织把 AI 从答案生成器，变成由真实行动持续校准的能力增长系统。**
 
@@ -43,6 +43,15 @@ Personal OS 由 Markdown 文件系统、Agent Skill 和 Skill 内置的确定性
 ```bash
 npx --yes --package=github:HANKSEN/hks-personal-os personal-os setup --agent auto
 ```
+
+对于 WorkBuddy、CodeBuddy、TRAE 等命令时限不明确的 Agent，优先使用非交互式软件安装：
+
+```bash
+npx --yes --package=github:HANKSEN/hks-personal-os personal-os setup \
+  --agent auto --install-only --yes --json
+```
+
+`github:` 获取发生在安装器启动前。若出现 `137 / SIGKILL`，可能是 GitHub 链路、宿主命令时限或内存限制，不能只凭退出码认定为代理问题。此时使用 Release `.tgz` 或离线附件，详见[弱网与离线安装](docs/distribution.md)。
 
 在交互式终端中，这条命令会依次完成安装确认、选择“新建/整理已有目录”、路径确认和初始化。默认不创建全局 CLI；只有用户主动需要终端或自动化入口时才添加 `--with-cli`。软件安装、初始化新目录、只读审计旧目录和执行复制迁移始终是四次独立授权。
 
@@ -157,13 +166,16 @@ V1.2.7 明确停止在 Codex 原生 MCP 表单中承载结构化审批正文：C
 | 自动识别 / 通用 Agents Skills | `--agent auto` |
 | Codex | `--agent codex` |
 | Claude Code | `--agent claude` |
-| WorkBuddy、QCode、Kimi 等 | `--agent none --skill-dir <宿主公布的目录>` |
+| OpenClaw / Hermes | `--agent openclaw` / `--agent hermes` |
+| WorkBuddy / CodeBuddy | `--agent workbuddy` / `--agent codebuddy` |
+| TRAE / TRAE SOLO | `--agent trae` / `--agent trae-solo` |
+| Kimi / QCode / Qoder 等 | 对应宿主名，或 `--skill-dir <宿主公布的目录>` |
 
-未知宿主不会被猜测路径。完整说明见[安装指南](docs/install.md)和[兼容性说明](docs/compatibility.md)。
+未知宿主不会被猜测私有路径。完整说明见[安装指南](docs/install.md)、[Agent 适配矩阵](docs/agent-compatibility.md)和[兼容性说明](docs/compatibility.md)。
 
 ## 当前状态
 
-- 当前稳定版为 v1.2.7；软件采用 AGPL-3.0-or-later，原创说明文档采用 CC BY-SA 4.0，并提供商业许可路径；
+- 当前稳定版为 v1.3.0；软件采用 AGPL-3.0-or-later，原创说明文档采用 CC BY-SA 4.0，并提供商业许可路径；
 - 已发布的 `v1.0.0` 仍按不可撤销的 MIT License 使用；
 - 自动化测试覆盖 Skill-first 安装、完整性校验、原子更新与回退、初始化、只读诊断、复制迁移、多宿主隔离、旧工作区升级、Apply / Undo 和故障恢复；
 - 通过 10,000 文件规模的索引与上下文边界测试；
@@ -174,6 +186,8 @@ V1.2.7 明确停止在 Codex 原生 MCP 表单中承载结构化审批正文：C
 ## 文档
 
 - [安装指南](docs/install.md)
+- [Agent 兼容与安装适配](docs/agent-compatibility.md)
+- [弱网、国内网络与离线安装](docs/distribution.md)
 - [版本更新与回退](docs/update.md)
 - [多 Agent 工作区与旧目录升级](docs/ai-workspaces.md)
 - [安全提示与免责声明](docs/safety.md)

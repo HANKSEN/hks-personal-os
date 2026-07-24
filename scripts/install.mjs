@@ -11,6 +11,7 @@ import { auditExistingDirectory } from "./lib/audit.mjs";
 import { PosError, invariant } from "./lib/errors.mjs";
 import { copyPath, exists, readJson, writeJsonAtomic } from "./lib/io.mjs";
 import { applyHostIntegrations, interactiveApprovalSummary, planHostIntegrations } from "./lib/host-integration.mjs";
+import { ALL_AGENT_TARGETS, detectAgentHosts, hostRegistry, resolveAgentSelection } from "./lib/host-registry.mjs";
 import {
   buildPackageManifest,
   compareLegacyToSource,
@@ -28,10 +29,11 @@ const WARNING = "Before authorizing any Agent to access valuable files, create a
 const HELP = `Personal OS Skill-first setup
 
 Usage:
-  personal-os setup [--agent auto|all|generic|codex|claude|none] [--skill-dir <parent>] [--yes]
+  personal-os setup [--agent auto|all|<host-list>|none] [--skill-dir <parent>] [--yes]
   personal-os install [--agent ...] [--with-cli] [--yes]
   personal-os update [--agent ...] [--skill-dir <parent>] [--yes]
   personal-os rollback --to <installed-version> [--yes]
+  personal-os diagnose [--agent auto|<host-list>] [--json]
   personal-os [legacy install options]
 
 Options:
@@ -86,7 +88,7 @@ function parse(argv) {
 
 function parseCommand(argv) {
   const [first, ...rest] = argv;
-  if (["setup", "install", "update", "rollback"].includes(first)) return { command: first, options: parse(rest), legacy: false };
+  if (["setup", "install", "update", "rollback", "diagnose"].includes(first)) return { command: first, options: parse(rest), legacy: false };
   return { command: "install", options: parse(argv), legacy: true };
 }
 
@@ -178,24 +180,25 @@ async function sourcePackageManifest(packageJson) {
   });
 }
 
-function selectedAgentParents(agentOption, home, customParents, detected) {
-  const requested = String(agentOption ?? "auto").split(",").map((item) => item.trim().toLowerCase()).filter(Boolean);
-  const allowed = new Set(["auto", "all", "generic", "codex", "claude", "none"]);
-  for (const item of requested) invariant(allowed.has(item), "UNKNOWN_AGENT_TARGET", "Unknown Agent target. Use auto, all, generic, codex, claude, none, or --skill-dir.", { target: item }, 2);
-
-  const targets = new Map();
-  const add = (name, parent) => targets.set(path.resolve(parent), { name, parent: path.resolve(parent) });
-  const expanded = requested.includes("all") ? ["generic", "codex", "claude"] : requested;
-  if (expanded.includes("auto")) {
-    add("generic", path.join(home, ".agents", "skills"));
-    if (detected.codex) add("codex", path.join(home, ".codex", "skills"));
-    if (detected.claude) add("claude", path.join(home, ".claude", "skills"));
+function selectAgentTargets(agentOption, home, customParents, detected) {
+  try {
+    return resolveAgentSelection({
+      agentOption,
+      home,
+      customParents: customParents.map((item) => expandHome(item, home)),
+      detected,
+    });
+  } catch (error) {
+    if (error?.code === "UNKNOWN_AGENT_TARGET") {
+      throw new PosError(
+        "UNKNOWN_AGENT_TARGET",
+        `Unknown Agent target. Use auto, all, none, ${ALL_AGENT_TARGETS.join(", ")}, or --skill-dir.`,
+        error.details,
+        2,
+      );
+    }
+    throw error;
   }
-  if (expanded.includes("generic")) add("generic", path.join(home, ".agents", "skills"));
-  if (expanded.includes("codex")) add("codex", path.join(home, ".codex", "skills"));
-  if (expanded.includes("claude")) add("claude", path.join(home, ".claude", "skills"));
-  for (const parent of customParents) add("custom", expandHome(parent, home));
-  return [...targets.values()];
 }
 
 async function inspectVersion(versionDir, packageJson, sourceManifest) {
@@ -362,21 +365,25 @@ export async function createInstallPlan(rawOptions = {}) {
   invariant(dataRoot !== path.parse(dataRoot).root && binDir !== path.parse(binDir).root, "UNSAFE_INSTALL_DESTINATION", "Installer refuses filesystem-root destinations.", { dataRoot, binDir }, 3);
   const versionsRoot = path.join(dataRoot, "versions");
   const versionDir = path.join(versionsRoot, packageJson.version);
-  const detected = {
-    codex: await exists(path.join(home, ".codex")),
-    claude: await exists(path.join(home, ".claude")),
-  };
-  const skillParents = selectedAgentParents(rawOptions.agent, home, rawOptions.skillDirs ?? [], detected);
+  const syntheticHome = rawOptions.home && path.resolve(rawOptions.home) !== path.resolve(process.env.HOME ?? os.homedir());
+  const environment = rawOptions.env ?? process.env;
+  const detectionEnvironment = rawOptions.env ?? (syntheticHome ? { ...process.env, PATH: "" } : process.env);
+  const detected = await detectAgentHosts({ home, env: detectionEnvironment });
+  const selection = selectAgentTargets(rawOptions.agent, home, rawOptions.skillDirs ?? [], detected);
+  const skillParents = selection.targets;
   const version = await inspectVersion(versionDir, packageJson, sourceManifest);
   const withCli = rawOptions.withCli === true || rawOptions.legacy === true;
   const binaries = withCli ? (await Promise.all([
     inspectLink(path.join(binDir, "pos"), path.join(versionDir, "scripts", "pos.mjs"), versionsRoot),
     inspectLink(path.join(binDir, "personal-os"), path.join(versionDir, "scripts", "install.mjs"), versionsRoot),
   ])).map((item) => ({ ...item, linkType: "file" })) : [];
-  const skills = await Promise.all(skillParents.map(async ({ name, parent }) => ({
+  const skills = await Promise.all(skillParents.map(async ({ name, hosts, parent, discovery, support, evidence }) => ({
     name,
+    hosts,
     parent,
-    discovery: name === "custom" ? "explicit-host-path" : "known-skill-target",
+    discovery,
+    support,
+    evidence,
     linkType: process.platform === "win32" ? "junction" : "dir",
     ...(await inspectLink(path.join(parent, "personal-os"), versionDir, versionsRoot)),
   })));
@@ -387,7 +394,7 @@ export async function createInstallPlan(rawOptions = {}) {
   const integrations = await planHostIntegrations({
     home,
     cwd: rawOptions.cwd ?? home,
-    env: rawOptions.env ?? process.env,
+    env: environment,
     skills,
     enabled: rawOptions.noInteractiveApproval !== true && rawOptions.interactiveApproval !== false,
     hostCommands: rawOptions.hostCommands ?? (rawOptions.home && path.resolve(rawOptions.home) !== path.resolve(process.env.HOME ?? os.homedir()) ? {} : null),
@@ -412,9 +419,79 @@ export async function createInstallPlan(rawOptions = {}) {
     pathConfigured,
     integrations,
     interactiveApproval: interactiveApprovalSummary(integrations),
+    requestedAgents: selection.requested,
+    selectedAgents: selection.selected,
+    detectedAgents: detected,
+    hostAdapters: selection.adapters.map((adapter) => ({
+      ...adapter,
+      pluginRoot: adapter.pluginManifest ? versionDir : null,
+      pluginManifestPath: adapter.pluginManifest ? path.join(versionDir, adapter.pluginManifest) : null,
+    })),
     safetyGuide: path.join(versionDir, "docs", "safety.md"),
     warning: WARNING,
     dataBoundary: "Installer does not initialize, read, migrate, or modify a Personal OS data root.",
+  };
+}
+
+export async function diagnoseInstallation(rawOptions = {}) {
+  const packageJson = await packageInfo();
+  const home = path.resolve(rawOptions.home ?? process.env.HOME ?? os.homedir());
+  const environment = rawOptions.env ?? process.env;
+  const detected = await detectAgentHosts({ home, env: environment });
+  const selection = selectAgentTargets(rawOptions.agent, home, rawOptions.skillDirs ?? [], detected);
+  const nonInteractive = rawOptions.stdinIsTTY ?? process.stdin.isTTY ? false : true;
+  const riskFactors = [
+    ...(nonInteractive ? [{
+      code: "NON_INTERACTIVE_HOST",
+      severity: "info",
+      message: "The invoking Agent does not expose an interactive terminal. Use --yes --install-only --json and let the Agent perform workspace initialization in a later turn.",
+    }] : []),
+    {
+      code: "GITHUB_COLD_FETCH",
+      severity: "warning",
+      message: "github: package acquisition may clone repository metadata and can fail in short-lived, weak-network, or low-memory Agent sandboxes. Prefer a release .tgz, a registry package after publication, or an offline file.",
+    },
+  ];
+  return {
+    schema: "personal-os.install-diagnosis.v1",
+    package: packageJson.name,
+    version: packageJson.version,
+    platform: process.platform,
+    arch: process.arch,
+    node: {
+      version: process.versions.node,
+      supported: Number(process.versions.node.split(".")[0]) >= 20,
+      executable: process.execPath,
+    },
+    terminal: {
+      interactive: !nonInteractive,
+      recommendedFlags: nonInteractive ? ["--yes", "--install-only", "--json"] : [],
+    },
+    requestedAgents: selection.requested,
+    selectedAgents: selection.selected,
+    detectedAgents: detected,
+    plannedSkillTargets: selection.targets.map((item) => ({
+      name: item.name,
+      hosts: item.hosts,
+      path: path.join(item.parent, "personal-os"),
+      discovery: item.discovery,
+      support: item.support,
+    })),
+    hostAdapters: selection.adapters,
+    registry: hostRegistry(),
+    acquisition: {
+      preferredOrder: [
+        "signed-or-checksummed-release-tgz",
+        "published-npm-package-with-configurable-registry",
+        "shallow-git-or-codeload-archive",
+        "offline-local-tgz",
+      ],
+      githubColdFetchIsRequired: false,
+      networkTested: false,
+      note: "This diagnostic is local-only and does not contact GitHub, npm, or a mirror.",
+    },
+    riskFactors,
+    dataBoundary: "Diagnosis does not discover, read, initialize, or modify a Personal OS data root.",
   };
 }
 
@@ -446,7 +523,9 @@ function nextInstallState(plan, previousState, operation) {
     history.push({ version: previousState.activeVersion, replacedAt: new Date().toISOString(), operation });
   }
   const skills = new Map((previousState?.skills ?? []).map((item) => [path.resolve(item.path), item]));
-  for (const { name, path: destination } of plan.skills) skills.set(path.resolve(destination), { name, path: destination });
+  for (const { name, hosts, discovery, support, path: destination } of plan.skills) {
+    skills.set(path.resolve(destination), { name, hosts: hosts ?? [name], discovery, support, path: destination });
+  }
   const binaries = new Map((previousState?.binaries ?? []).map((item) => [path.resolve(item.path), item]));
   for (const { path: destination } of plan.binaries) binaries.set(path.resolve(destination), { path: destination });
   return {
@@ -459,6 +538,9 @@ function nextInstallState(plan, previousState, operation) {
     manifestDigest: plan.sourceDigest,
     skills: [...skills.values()],
     binaries: [...binaries.values()],
+    requestedAgents: plan.requestedAgents ?? previousState?.requestedAgents ?? [],
+    selectedAgents: plan.selectedAgents ?? previousState?.selectedAgents ?? [],
+    hostAdapters: plan.hostAdapters ?? previousState?.hostAdapters ?? [],
     integrations: plan.integrations ?? previousState?.integrations ?? [],
     updatedAt: new Date().toISOString(),
     operation,
@@ -495,6 +577,15 @@ export async function installPackage(options = {}) {
   });
   state = { ...state, integrations: integrationResults, interactiveApproval: interactiveApprovalSummary(integrationResults) };
   await writeJsonAtomic(plan.statePath, state);
+  const adapterNext = plan.hostAdapters.flatMap((adapter) => {
+    if (adapter.activation === "plugin-bundle-with-shared-skill-fallback") {
+      return [`${adapter.label}: load or import the plugin root ${adapter.pluginRoot} using the host's documented local plugin flow; the shared Skill target remains a fallback.`];
+    }
+    if (adapter.support === "standard-fallback") {
+      return [`${adapter.label}: verify that the host discovered the shared Skill. If it did not, explicitly import the plugin/Skill or rerun with the host's documented --skill-dir.`];
+    }
+    return [];
+  });
   return {
     applied: true,
     version: plan.version,
@@ -508,12 +599,13 @@ export async function installPackage(options = {}) {
     statePath: plan.statePath,
     previousVersions: state.previousVersions,
     binaries: plan.binaries.map(({ path: destination }) => destination),
-    skills: plan.skills.map(({ name, path: destination }) => ({ name, path: destination })),
+    skills: plan.skills.map(({ name, hosts, path: destination }) => ({ name, hosts, path: destination })),
     safetyGuide: plan.safetyGuide,
     warning: WARNING,
     pathConfigured: plan.pathConfigured,
     integrations: integrationResults,
     interactiveApproval: interactiveApprovalSummary(integrationResults),
+    hostAdapters: plan.hostAdapters,
     next: [
       plan.skills.length === 0
         ? "No Skill discovery target was configured. Use the installed SKILL.md and embedded runtime explicitly; this is runtime-only compatibility mode."
@@ -525,6 +617,7 @@ export async function installPackage(options = {}) {
       integrationResults.some((item) => item.enabled)
         ? "Interactive approval is enabled for the detected compatible Agent host; start a new session so it can load the MCP adapter."
         : "This host will use explicit text confirmation unless an MCP-compatible adapter is configured later.",
+      ...adapterNext,
       "Before authorizing access to valuable existing files, create and restore-test an independent backup.",
     ],
   };
@@ -564,20 +657,27 @@ function binaryTarget(versionDir, destination) {
 async function plannedUpdateLinks(rawOptions, environment, versionDir, state) {
   const warnings = [];
   const skillCandidates = new Map();
-  const addSkill = (name, destination, explicit = false) => {
+  const addSkill = (name, destination, explicit = false, metadata = {}) => {
     const resolved = path.resolve(destination);
     const current = skillCandidates.get(resolved);
-    skillCandidates.set(resolved, { name: current?.name ?? name, path: resolved, explicit: current?.explicit || explicit });
+    skillCandidates.set(resolved, {
+      name: current?.name ?? name,
+      hosts: [...new Set([...(current?.hosts ?? []), ...(metadata.hosts ?? [name])])],
+      discovery: current?.discovery ?? metadata.discovery,
+      support: current?.support ?? metadata.support,
+      path: resolved,
+      explicit: current?.explicit || explicit,
+    });
   };
-  for (const skill of state?.skills ?? []) addSkill(skill.name ?? "state", skill.path, false);
+  for (const skill of state?.skills ?? []) addSkill(skill.name ?? "state", skill.path, false, skill);
 
-  const detected = {
-    codex: await exists(path.join(environment.home, ".codex")),
-    claude: await exists(path.join(environment.home, ".claude")),
-  };
+  const syntheticHome = rawOptions.home && path.resolve(rawOptions.home) !== path.resolve(process.env.HOME ?? os.homedir());
+  const detected = await detectAgentHosts({ home: environment.home, env: rawOptions.env ?? (syntheticHome ? { ...process.env, PATH: "" } : process.env) });
   const explicitlySelected = rawOptions.agent !== undefined || (rawOptions.skillDirs?.length ?? 0) > 0;
-  const selected = selectedAgentParents(rawOptions.agent ?? "auto", environment.home, rawOptions.skillDirs ?? [], detected);
-  for (const { name, parent } of selected) addSkill(name, path.join(parent, "personal-os"), explicitlySelected);
+  const selection = selectAgentTargets(rawOptions.agent ?? "auto", environment.home, rawOptions.skillDirs ?? [], detected);
+  for (const target of selection.targets) {
+    addSkill(target.name, path.join(target.parent, "personal-os"), explicitlySelected, target);
+  }
 
   const skills = [];
   for (const candidate of skillCandidates.values()) {
@@ -589,8 +689,10 @@ async function plannedUpdateLinks(rawOptions, environment, versionDir, state) {
     const inspected = await inspectLink(candidate.path, versionDir, environment.versionsRoot);
     skills.push({
       name: candidate.name,
+      hosts: candidate.hosts,
       parent: path.dirname(candidate.path),
-      discovery: candidate.name === "custom" || candidate.name === "state" ? "explicit-host-path" : "known-skill-target",
+      discovery: candidate.discovery ?? (candidate.name === "custom" || candidate.name === "state" ? "explicit-host-path" : "known-skill-target"),
+      support: candidate.support,
       linkType: process.platform === "win32" ? "junction" : "dir",
       ...inspected,
     });
@@ -611,7 +713,7 @@ async function plannedUpdateLinks(rawOptions, environment, versionDir, state) {
     const inspected = await inspectLink(candidate.path, binaryTarget(versionDir, candidate.path), environment.versionsRoot);
     binaries.push({ ...inspected, linkType: "file" });
   }
-  return { skills, binaries, warnings };
+  return { skills, binaries, warnings, selection, detected };
 }
 
 async function verifyCurrentVersions(currentVersions, versionsRoot) {
@@ -667,6 +769,14 @@ export async function createUpdatePlan(rawOptions = {}) {
     binaries: links.binaries,
     integrations,
     interactiveApproval: interactiveApprovalSummary(integrations),
+    requestedAgents: links.selection.requested,
+    selectedAgents: links.selection.selected,
+    detectedAgents: links.detected,
+    hostAdapters: links.selection.adapters.map((adapter) => ({
+      ...adapter,
+      pluginRoot: adapter.pluginManifest ? versionDir : null,
+      pluginManifestPath: adapter.pluginManifest ? path.join(versionDir, adapter.pluginManifest) : null,
+    })),
     warnings: links.warnings,
     dataRootsAccessed: [],
     dataMigration: "not-performed",
@@ -694,10 +804,11 @@ export async function updatePackage(options = {}) {
     version: plan.targetVersion,
     direction: plan.direction,
     integrity: "verified",
-    skills: plan.skills.map(({ name, path: destination }) => ({ name, path: destination })),
+    skills: plan.skills.map(({ name, hosts, path: destination }) => ({ name, hosts, path: destination })),
     binaries: plan.binaries.map(({ path: destination }) => destination),
     integrations: integrationResults,
     interactiveApproval: interactiveApprovalSummary(integrationResults),
+    hostAdapters: plan.hostAdapters,
     statePath: plan.statePath,
     dataRootsAccessed: [],
     dataMigration: "not-performed",
@@ -794,6 +905,7 @@ function installationSummary(result) {
     version: result.version ?? result.plan?.version ?? null,
     interactiveApproval: result.interactiveApproval ?? result.plan?.interactiveApproval ?? null,
     integrations: result.integrations ?? result.plan?.integrations ?? [],
+    hostAdapters: result.hostAdapters ?? result.plan?.hostAdapters ?? [],
   };
 }
 
@@ -1051,6 +1163,7 @@ async function main() {
   const result = command === "setup" && interactive
     ? await runInteractiveSetup(options)
     : command === "setup" ? await runSetup(options)
+    : command === "diagnose" ? await diagnoseInstallation(options)
     : ["update", "rollback"].includes(command) && interactive ? await runInteractiveSoftwareChange(command, options)
     : command === "update" ? await updatePackage(options)
     : command === "rollback" ? await rollbackPackage(options)

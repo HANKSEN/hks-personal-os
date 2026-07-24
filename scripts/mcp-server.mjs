@@ -5,7 +5,7 @@ import { createInterface } from "node:readline";
 import { approvalStatus, createApprovalProposal, decideApproval } from "./lib/approval.mjs";
 import { errorPayload } from "./lib/errors.mjs";
 
-const SERVER_INFO = { name: "hks-personal-os", version: "1.2.7" };
+const SERVER_INFO = { name: "hks-personal-os", version: "1.3.0" };
 const pending = new Map();
 let nextRequestId = 1;
 let clientCapabilities = {};

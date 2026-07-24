@@ -6,7 +6,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import test from "node:test";
 
-import { createInstallPlan, installPackage } from "../scripts/install.mjs";
+import { createInstallPlan, diagnoseInstallation, installPackage } from "../scripts/install.mjs";
 import { exists, hashPath } from "../scripts/lib/io.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -151,6 +151,66 @@ test("installer labels runtime-only fallback when no Skill target is configured"
     assert.equal(await exists(result.embeddedRuntime), true);
     assert.match(result.next[0], /compatibility mode/u);
   });
+});
+
+test("installer covers verified and fallback host adapters without guessing private directories", async () => {
+  await withInstallerSandbox(async ({ home, dataDir, binDir }) => {
+    const result = await installPackage({
+      home,
+      dataDir,
+      binDir,
+      agent: "openclaw,hermes,workbuddy,codebuddy,trae,trae-solo,codex,claude",
+      yes: true,
+      noInteractiveApproval: true,
+    });
+    assert.equal(result.applied, true);
+    assert.deepEqual(
+      result.skills.map((item) => item.path).sort(),
+      [
+        path.join(home, ".agents", "skills", "personal-os"),
+        path.join(home, ".claude", "skills", "personal-os"),
+        path.join(home, ".codex", "skills", "personal-os"),
+        path.join(home, ".hermes", "skills", "personal-os"),
+        path.join(home, ".openclaw", "skills", "personal-os"),
+      ].sort(),
+    );
+    assert.equal(result.hostAdapters.find((item) => item.host === "workbuddy").pluginManifestPath, path.join(result.installDir, ".workbuddy-plugin", "plugin.json"));
+    assert.equal(result.hostAdapters.find((item) => item.host === "codebuddy").pluginManifestPath, path.join(result.installDir, ".codebuddy-plugin", "plugin.json"));
+    assert.equal(await exists(path.join(result.installDir, "skills", "personal-os", "SKILL.md")), true);
+  });
+});
+
+test("local diagnosis is non-mutating and gives weak-network recovery guidance", async () => {
+  await withInstallerSandbox(async ({ home, dataDir, binDir }) => {
+    await mkdir(path.join(home, ".trae"));
+    const before = await exists(dataDir);
+    const result = await diagnoseInstallation({
+      home,
+      dataDir,
+      binDir,
+      agent: "auto",
+      env: { PATH: "" },
+      stdinIsTTY: false,
+    });
+    assert.equal(result.schema, "personal-os.install-diagnosis.v1");
+    assert.equal(result.selectedAgents.includes("trae"), true);
+    assert.equal(result.acquisition.githubColdFetchIsRequired, false);
+    assert.equal(result.riskFactors.some((item) => item.code === "GITHUB_COLD_FETCH"), true);
+    assert.equal(await exists(dataDir), before);
+  });
+});
+
+test("CodeBuddy and WorkBuddy plugin adapters are self-contained and versioned", async () => {
+  const packageMetadata = JSON.parse(await readFile(path.resolve("package.json"), "utf8"));
+  for (const host of ["codebuddy", "workbuddy"]) {
+    const manifest = JSON.parse(await readFile(path.resolve(`.${host}-plugin/plugin.json`), "utf8"));
+    assert.equal(manifest.version, packageMetadata.version);
+    assert.equal(manifest.skills, "./skills/");
+    assert.equal(manifest.mcpServers, "./.codebuddy-mcp.json");
+  }
+  const adapter = await readFile(path.resolve("skills/personal-os/SKILL.md"), "utf8");
+  assert.match(adapter, /\.\.\/\.\.\/SKILL\.md/u);
+  assert.match(adapter, /\.\.\/\.\.\/scripts\/pos\.mjs/u);
 });
 
 test("installer refuses unrelated binary and Skill collisions", async () => {

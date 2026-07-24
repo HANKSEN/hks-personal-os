@@ -1,0 +1,14 @@
+{
+  "name": "hks-personal-os",
+  "version": "1.3.0",
+  "description": "Local-first Personal OS for safe, reusable Agent context.",
+  "author": {
+    "name": "Hanksen"
+  },
+  "homepage": "https://github.com/HANKSEN/hks-personal-os",
+  "repository": "https://github.com/HANKSEN/hks-personal-os",
+  "license": "AGPL-3.0-or-later",
+  "keywords": ["personal-os", "agent-skills", "knowledge-management"],
+  "skills": "./skills/",
+  "mcpServers": "./.codebuddy-mcp.json"
+}

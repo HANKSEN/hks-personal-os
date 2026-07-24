@@ -19,6 +19,12 @@ const required = [
   "CONTRIBUTING.md",
   "SKILL.md",
   ".mcp.json",
+  ".codebuddy-mcp.json",
+  ".codebuddy-plugin/plugin.json",
+  ".workbuddy-plugin/plugin.json",
+  ".claude-plugin/plugin.json",
+  ".codex-plugin/plugin.json",
+  "skills/personal-os/SKILL.md",
   "AGENT_SETUP.md",
   "AGENT_INSTALL.md",
   "AGENT_UPDATE.md",
@@ -59,6 +65,10 @@ const required = [
   "docs/setup-state-machine.md",
   "docs/user-journeys.md",
   "docs/compatibility.md",
+  "docs/agent-compatibility.md",
+  "docs/agent-compatibility.en.md",
+  "docs/distribution.md",
+  "docs/distribution.en.md",
   "docs/safety.md",
   "docs/safety.en.md",
   "docs/foundation/README.md",
@@ -81,6 +91,7 @@ const required = [
   "scripts/lib/approval.mjs",
   "scripts/lib/approval-visual.mjs",
   "scripts/lib/host-integration.mjs",
+  "scripts/lib/host-registry.mjs",
   "scripts/lib/package-integrity.mjs",
   "scripts/pos.mjs",
   "package.json",
@@ -103,7 +114,17 @@ const keys = [...frontmatter.matchAll(/^([a-zA-Z0-9_-]+):/gmu)].map((match) => m
 if (keys.join(",") !== "name,description") errors.push(`SKILL.md frontmatter must contain only name and description; found ${keys.join(", ")}.`);
 if (!/^name: personal-os$/mu.test(frontmatter)) errors.push("SKILL.md name must be personal-os.");
 
-for (const relative of ["package.json", ".claude-plugin/plugin.json", ".codex-plugin/plugin.json", "assets/templates/CHANGESET.json", "assets/templates/policy.json"]) {
+for (const relative of [
+  "package.json",
+  ".claude-plugin/plugin.json",
+  ".codex-plugin/plugin.json",
+  ".codebuddy-plugin/plugin.json",
+  ".workbuddy-plugin/plugin.json",
+  ".mcp.json",
+  ".codebuddy-mcp.json",
+  "assets/templates/CHANGESET.json",
+  "assets/templates/policy.json",
+]) {
   try {
     JSON.parse(await readFile(path.join(root, relative), "utf8"));
   } catch (error) {
@@ -122,7 +143,12 @@ try {
       errors.push(`Private source path must not be included in package.json files: ${forbidden}`);
     }
   }
-  for (const relative of [".claude-plugin/plugin.json", ".codex-plugin/plugin.json"]) {
+  for (const relative of [
+    ".claude-plugin/plugin.json",
+    ".codex-plugin/plugin.json",
+    ".codebuddy-plugin/plugin.json",
+    ".workbuddy-plugin/plugin.json",
+  ]) {
     const manifest = JSON.parse(await readFile(path.join(root, relative), "utf8"));
     if (manifest.version !== packageMetadata.version) errors.push(`${relative} version does not match package.json.`);
   }

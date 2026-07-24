@@ -27,13 +27,22 @@ Before each permission boundary changes, show the exact paths and access mode an
 
 The Agent should continue through installation, workspace choice, initialization or backup-gated read-only audit, health verification, and one optional real first task. Installation, initialization, source reading, copy migration, and formal Changeset apply are separate authorizations.
 
-## One interactive command
+## One interactive command on a stable network
 
 ```bash
 npx --yes --package=github:HANKSEN/hks-personal-os personal-os setup --agent auto
 ```
 
 The interactive setup asks for installation approval, journey, and exact workspace path. By default it installs a versioned package and Skill entry, but no global CLI and no PATH change. It also detects supported Codex and Claude Code host commands and, when registration is safe, includes the local interactive-approval MCP adapter in the reviewed install plan.
+
+The `github:` acquisition happens before the Personal OS installer starts. In a short-lived Agent shell, prefer a non-interactive software-only step:
+
+```bash
+npx --yes --package=github:HANKSEN/hks-personal-os personal-os setup \
+  --agent auto --install-only --yes --json
+```
+
+If acquisition is killed, use the checksummed release `.tgz` or pass that file to the Agent offline. Exit 137 alone does not prove a proxy problem; command deadlines and memory limits can produce the same result. See [weak-network and offline distribution](distribution.en.md).
 
 When enabled, a new Codex session renders **Approve**, **Revise**, **Reject**, and **Cancel** through the structured in-conversation approval card; the Codex native MCP form is deliberately not used for decision-critical content. Another compatible host may use its native MCP form only when it preserves a reviewable layout. If the host does not support either interaction or registration fails, the Skill remains usable and fails closed to an exact proposal-ID text confirmation. Use `--no-interactive-approval` to opt out. A same-name unrelated MCP server is never overwritten.
 
@@ -62,13 +71,23 @@ This stops before root mutation. Add `--initialize` only after the user confirms
 
 | Host | Option | Default Skill path |
 |---|---|---|
-| Auto | `--agent auto` | Generic, plus detected Codex/Claude locations |
+| Auto | `--agent auto` | Generic, plus detected host adapters |
 | Generic Agents Skills | `--agent generic` | `~/.agents/skills/personal-os` |
 | Codex | `--agent codex` | `~/.codex/skills/personal-os` |
 | Claude Code | `--agent claude` | `~/.claude/skills/personal-os` |
+| OpenClaw | `--agent openclaw` | `~/.openclaw/skills/personal-os` |
+| Hermes Agent | `--agent hermes` | `~/.hermes/skills/personal-os` |
+| WorkBuddy / CodeBuddy | `--agent workbuddy` / `--agent codebuddy` | Plugin manifest plus shared fallback |
+| TRAE / TRAE SOLO | `--agent trae` / `--agent trae-solo` | Shared Skill or explicit host import |
 | Explicit custom host | `--agent none --skill-dir <parent>` | User- or host-provided path |
 
-Personal OS never guesses undocumented WorkBuddy, QCode, Kimi, or other host paths. When native discovery is unavailable, an Agent may explicitly read the installed `SKILL.md` and invoke the packaged `scripts/pos.mjs`; report this as compatibility mode.
+Personal OS also accepts compatibility targets such as `kimi`, `qcode`, `qoder`, `cursor`, `windsurf`, `cline`, `roo-code`, `opencode`, and `gemini-cli`. It never guesses undocumented private paths. See [Agent compatibility](agent-compatibility.en.md).
+
+Local, offline, no-write diagnosis:
+
+```bash
+node scripts/install.mjs diagnose --agent auto --json
+```
 
 ## Optional global CLI
 

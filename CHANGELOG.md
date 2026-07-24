@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.3.0 (2026-07-24)
+
+- Add a capability-graded Agent registry covering Codex, Claude Code, OpenClaw, Hermes Agent, WorkBuddy, CodeBuddy, TRAE, TRAE SOLO, and shared-standard fallbacks for other mainstream Agents.
+- Detect hosts from real local signals and refuse to invent undocumented private Skill directories.
+- Add official WorkBuddy/CodeBuddy plugin manifests, a plugin-discovered Skill adapter, and a plugin-root MCP configuration.
+- Add a local no-write `diagnose` command that reports Node, terminal mode, host signals, planned targets, support grade, and acquisition risks.
+- Separate software acquisition from workspace initialization for short-lived Agent shells.
+- Add a checksummed release-bundle builder with a sub-1-MiB package budget for weak-network and offline installation.
+- Remove README diagrams and candidate visual sources from the runtime distribution package while preserving them in the public repository.
+- Add isolated regression coverage for every target class, plugin self-containment, detection evidence, offline diagnosis, and release size.
+
 ## 1.2.7 (2026-07-21)
 
 - Treat Codex native MCP form elicitation as unsuitable for decision-critical structured approval because the host may flatten or normalize message layout.

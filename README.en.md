@@ -2,9 +2,9 @@
 
 [简体中文](README.md) · [繁體中文](README.zh-TW.md) · **English**
 
-[![version](https://img.shields.io/badge/version-1.2.7-1f6feb?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/releases/tag/v1.2.7)
+[![version](https://img.shields.io/badge/version-1.3.0-1f6feb?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/releases)
 [![Skill](https://img.shields.io/badge/Skill-Personal_OS-6f42c1?style=flat-square)](SKILL.md)
-[![tests](https://img.shields.io/badge/tests-100_passing-2da44e?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/tree/main/tests)
+[![tests](https://img.shields.io/badge/tests-108_passing-2da44e?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/tree/main/tests)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A520-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![software license](https://img.shields.io/badge/software-AGPL--3.0--or--later-663399?style=flat-square)](LICENSE)
 [![docs license](https://img.shields.io/badge/docs-CC_BY--SA_4.0-fb782f?style=flat-square)](LICENSE-DOCS.md)
@@ -19,7 +19,7 @@ Hks Personal OS helps AI practitioners build a working system for continuously r
 
 Personal OS combines a Markdown file system, an Agent Skill, and a deterministic local runtime embedded in that Skill. PARA defines physical ownership; `Knowledge / Experience / Principles / Artifacts / Data` define asset meaning; isolated Runs and reviewable Changesets protect formal files. A global `pos` CLI is optional.
 
-## Who I am: Hanksen
+## Author: **Hanksen**
 
 **Definer and practitioner of the Individual Cognitive Compounding System: helping individuals and organizations turn AI from an answer generator into a capability-growth system continuously calibrated by real action.**
 
@@ -37,6 +37,15 @@ Or run:
 ```bash
 npx --yes --package=github:HANKSEN/hks-personal-os personal-os setup --agent auto
 ```
+
+For short-lived Agent shells, use a software-only non-interactive step and continue workspace initialization in the next turn:
+
+```bash
+npx --yes --package=github:HANKSEN/hks-personal-os personal-os setup \
+  --agent auto --install-only --yes --json
+```
+
+If the pre-runtime GitHub fetch is killed, use the checksummed release `.tgz` or pass it to the Agent offline. See [weak-network and offline distribution](docs/distribution.en.md).
 
 Interactive setup covers installation, journey selection, path confirmation, initialization, and onboarding. Add `--with-cli` only when terminal or automation access is explicitly needed.
 
@@ -128,7 +137,7 @@ For existing files, ask for a read-only audit and report before any copy. See [f
 
 ## Current status
 
-- current stable release v1.2.7; software under AGPL-3.0-or-later, original explanatory documentation under CC BY-SA 4.0, with a commercial-license path;
+- current stable release v1.3.0; software under AGPL-3.0-or-later, original explanatory documentation under CC BY-SA 4.0, with a commercial-license path;
 - the published `v1.0.0` remains available under its irrevocable MIT license;
 - automated coverage for Skill-first install, package integrity, atomic update and rollback, initialization, read-only audit, copy migration, multi-host isolation, legacy-workspace upgrade, Apply / Undo, and failure recovery;
 - bounded retrieval verified with 10,000 synthetic files;
@@ -139,6 +148,8 @@ For existing files, ask for a read-only audit and report before any copy. See [f
 ## Documentation
 
 - [Installation](docs/install.en.md)
+- [Agent compatibility](docs/agent-compatibility.en.md)
+- [Weak-network and offline distribution](docs/distribution.en.md)
 - [Update and rollback](docs/update.en.md)
 - [Multi-Agent workspaces and legacy-root upgrade](docs/ai-workspaces.en.md)
 - [Safety and disclaimer](docs/safety.en.md)

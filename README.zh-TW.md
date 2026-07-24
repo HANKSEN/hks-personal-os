@@ -2,9 +2,9 @@
 
 [簡體中文](README.md) · **繁體中文** · [English](README.en.md)
 
-[![version](https://img.shields.io/badge/version-1.2.7-1f6feb?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/releases/tag/v1.2.7)
+[![version](https://img.shields.io/badge/version-1.3.0-1f6feb?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/releases)
 [![Skill](https://img.shields.io/badge/Skill-Personal_OS-6f42c1?style=flat-square)](SKILL.md)
-[![tests](https://img.shields.io/badge/tests-100_passing-2da44e?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/tree/main/tests)
+[![tests](https://img.shields.io/badge/tests-108_passing-2da44e?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/tree/main/tests)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A520-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![software license](https://img.shields.io/badge/software-AGPL--3.0--or--later-663399?style=flat-square)](LICENSE)
 [![docs license](https://img.shields.io/badge/docs-CC_BY--SA_4.0-fb782f?style=flat-square)](LICENSE-DOCS.md)
@@ -19,7 +19,7 @@ Hks Personal OS 幫助 AI 實踐者建立一套可以持續呼叫、重用與迭
 
 Personal OS 由 Markdown 檔案系統、Agent Skill 與 Skill 內建的確定性本機執行期組成。它使用 PARA 管理實體位置，透過 `Knowledge / Experience / Principles / Artifacts / Data` 管理資產意義，並以隔離 Run 與 Changeset 保護正式檔案。全域 `pos` CLI 是選用入口，不是一般使用者的安裝前提。
 
-## 我是誰：韓克森（Hanksen）
+## 作者：**韓克森（Hanksen）**
 
 **個體認知複利體系的定義者與實踐者：幫助個人與組織把 AI 從答案生成器，變成由真實行動持續校準的能力增長系統。**
 
@@ -43,6 +43,15 @@ Personal OS 由 Markdown 檔案系統、Agent Skill 與 Skill 內建的確定性
 ```bash
 npx --yes --package=github:HANKSEN/hks-personal-os personal-os setup --agent auto
 ```
+
+對 WorkBuddy、CodeBuddy、TRAE 等指令時限不明確的 Agent，優先使用非互動式軟體安裝：
+
+```bash
+npx --yes --package=github:HANKSEN/hks-personal-os personal-os setup \
+  --agent auto --install-only --yes --json
+```
+
+若安裝器啟動前的 GitHub 取得被終止，請改用帶 SHA-256 的 Release `.tgz` 或離線附件。詳見[弱網與離線安裝](docs/distribution.md)。
 
 互動式 Setup 會依序完成安裝確認、選擇新建或整理、路徑確認與初始化。預設不建立全域 CLI；只有使用者主動需要終端或自動化入口時才加入 `--with-cli`。軟體安裝、新目錄初始化、舊目錄唯讀稽核與複製遷移是獨立授權。
 
@@ -157,13 +166,16 @@ V1.2.7 明確停止在 Codex 原生 MCP 表單中承載結構化審批正文：C
 | 自動識別 / 通用 Agents Skills | `--agent auto` |
 | Codex | `--agent codex` |
 | Claude Code | `--agent claude` |
-| WorkBuddy、QCode、Kimi 等 | `--agent none --skill-dir <宿主公布的目錄>` |
+| OpenClaw / Hermes | `--agent openclaw` / `--agent hermes` |
+| WorkBuddy / CodeBuddy | `--agent workbuddy` / `--agent codebuddy` |
+| TRAE / TRAE SOLO | `--agent trae` / `--agent trae-solo` |
+| Kimi / QCode / Qoder 等 | 對應宿主名，或 `--skill-dir <宿主公布的目錄>` |
 
 未知宿主不會被猜測路徑。完整說明見[安裝指南](docs/install.md)與[相容性說明](docs/compatibility.md)。
 
 ## 目前狀態
 
-- 目前穩定版為 v1.2.7；軟體採用 AGPL-3.0-or-later，原創說明文件採用 CC BY-SA 4.0，並提供商業授權途徑；
+- 目前穩定版為 v1.3.0；軟體採用 AGPL-3.0-or-later，原創說明文件採用 CC BY-SA 4.0，並提供商業授權途徑；
 - 已發佈的 `v1.0.0` 仍依不可撤銷的 MIT License 使用；
 - 自動化測試涵蓋 Skill-first 安裝、初始化、唯讀診斷、複製遷移、多宿主隔離、舊工作區升級、Apply / Undo 與故障復原；
 - 通過 10,000 個檔案規模的索引與上下文邊界測試；
@@ -174,6 +186,8 @@ V1.2.7 明確停止在 Codex 原生 MCP 表單中承載結構化審批正文：C
 ## 文件
 
 - [安裝指南](docs/install.md)
+- [Agent 相容與安裝適配](docs/agent-compatibility.md)
+- [弱網、國內網路與離線安裝](docs/distribution.md)
 - [版本更新與回退](docs/update.md)
 - [多 Agent 工作區與舊目錄升級](docs/ai-workspaces.md)
 - [安全提示與免責聲明](docs/safety.md)
