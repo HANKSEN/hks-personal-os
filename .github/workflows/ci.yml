@@ -2,6 +2,8 @@ name: validate
 
 on:
   push:
+    branches:
+      - main
   pull_request:
 
 permissions:
@@ -16,8 +18,8 @@ jobs:
         node: [20, 22]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node }}
       - run: npm run validate
@@ -25,9 +27,9 @@ jobs:
   windows-portability:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - run: npm run check
-      - run: node --test tests/host-registry.test.mjs tests/distribution.test.mjs
+      - run: node --test tests/host-registry.test.mjs tests/platform-validation.test.mjs

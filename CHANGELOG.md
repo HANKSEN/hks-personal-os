@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.1 (2026-07-24)
+
+- Make executable-script validation platform-aware: Windows verifies shebangs and package entry points without requiring POSIX mode bits, while macOS and Linux keep execute-permission checks.
+- Add regression coverage for Windows and POSIX executable metadata behavior.
+- Upgrade GitHub Actions checkout and Node setup steps to v5.
+- Run push validation only for `main`, avoiding duplicate workflow runs when a release tag points to the same commit.
+
 ## 1.3.0 (2026-07-24)
 
 - Add a capability-graded Agent registry covering Codex, Claude Code, OpenClaw, Hermes Agent, WorkBuddy, CodeBuddy, TRAE, TRAE SOLO, and shared-standard fallbacks for other mainstream Agents.

@@ -2,7 +2,7 @@
 
 [簡體中文](README.md) · **繁體中文** · [English](README.en.md)
 
-[![version](https://img.shields.io/badge/version-1.3.0-1f6feb?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/releases)
+[![version](https://img.shields.io/badge/version-1.3.1-1f6feb?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/releases)
 [![Skill](https://img.shields.io/badge/Skill-Personal_OS-6f42c1?style=flat-square)](SKILL.md)
 [![tests](https://img.shields.io/badge/tests-108_passing-2da44e?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/tree/main/tests)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A520-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
@@ -175,7 +175,7 @@ V1.2.7 明確停止在 Codex 原生 MCP 表單中承載結構化審批正文：C
 
 ## 目前狀態
 
-- 目前穩定版為 v1.3.0；軟體採用 AGPL-3.0-or-later，原創說明文件採用 CC BY-SA 4.0，並提供商業授權途徑；
+- 目前穩定版為 v1.3.1；軟體採用 AGPL-3.0-or-later，原創說明文件採用 CC BY-SA 4.0，並提供商業授權途徑；
 - 已發佈的 `v1.0.0` 仍依不可撤銷的 MIT License 使用；
 - 自動化測試涵蓋 Skill-first 安裝、初始化、唯讀診斷、複製遷移、多宿主隔離、舊工作區升級、Apply / Undo 與故障復原；
 - 通過 10,000 個檔案規模的索引與上下文邊界測試；

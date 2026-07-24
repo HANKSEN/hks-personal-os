@@ -2,7 +2,7 @@
 
 [简体中文](README.md) · [繁體中文](README.zh-TW.md) · **English**
 
-[![version](https://img.shields.io/badge/version-1.3.0-1f6feb?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/releases)
+[![version](https://img.shields.io/badge/version-1.3.1-1f6feb?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/releases)
 [![Skill](https://img.shields.io/badge/Skill-Personal_OS-6f42c1?style=flat-square)](SKILL.md)
 [![tests](https://img.shields.io/badge/tests-108_passing-2da44e?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/tree/main/tests)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A520-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
@@ -137,7 +137,7 @@ For existing files, ask for a read-only audit and report before any copy. See [f
 
 ## Current status
 
-- current stable release v1.3.0; software under AGPL-3.0-or-later, original explanatory documentation under CC BY-SA 4.0, with a commercial-license path;
+- current stable release v1.3.1; software under AGPL-3.0-or-later, original explanatory documentation under CC BY-SA 4.0, with a commercial-license path;
 - the published `v1.0.0` remains available under its irrevocable MIT license;
 - automated coverage for Skill-first install, package integrity, atomic update and rollback, initialization, read-only audit, copy migration, multi-host isolation, legacy-workspace upgrade, Apply / Undo, and failure recovery;
 - bounded retrieval verified with 10,000 synthetic files;

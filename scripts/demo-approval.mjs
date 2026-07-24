@@ -89,7 +89,7 @@ const server = createServer(async (request, response) => {
 const port = Number(process.argv.find((item) => item.startsWith("--port="))?.split("=")[1] ?? 0);
 server.listen(port, "127.0.0.1", () => {
   const address = server.address();
-  process.stdout.write(`Hks Personal OS V1.3.0 approval demo\nURL: http://127.0.0.1:${address.port}\nDisposable root: ${root}\n`);
+  process.stdout.write(`Hks Personal OS V1.3.1 approval demo\nURL: http://127.0.0.1:${address.port}\nDisposable root: ${root}\n`);
 });
 async function cleanup() {
   server.close();

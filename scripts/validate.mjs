@@ -4,6 +4,8 @@ import { readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { validateExecutableMetadata } from "./lib/platform-validation.mjs";
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const required = [
   "README.md",
@@ -93,6 +95,7 @@ const required = [
   "scripts/lib/host-integration.mjs",
   "scripts/lib/host-registry.mjs",
   "scripts/lib/package-integrity.mjs",
+  "scripts/lib/platform-validation.mjs",
   "scripts/pos.mjs",
   "package.json",
 ];
@@ -188,7 +191,13 @@ try {
 for (const relative of ["install.sh", "scripts/install.mjs", "scripts/pos.mjs", "scripts/validate.mjs"]) {
   try {
     const info = await stat(path.join(root, relative));
-    if ((info.mode & 0o111) === 0) errors.push(`Executable file is missing execute permission: ${relative}`);
+    const content = await readFile(path.join(root, relative), "utf8");
+    errors.push(...validateExecutableMetadata({
+      relative,
+      platform: process.platform,
+      mode: info.mode,
+      content,
+    }));
   } catch {
     // Required-file validation reports the missing path separately.
   }
