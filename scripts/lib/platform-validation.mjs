@@ -1,4 +1,8 @@
 const shebangPattern = /^#![^\r\n]+/u;
+const frontmatterPattern = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/u;
+
+export const extractYamlFrontmatter = (content = "") =>
+  content.match(frontmatterPattern)?.[1] ?? "";
 
 export const validateExecutableMetadata = ({
   relative,

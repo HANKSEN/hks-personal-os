@@ -1,7 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { validateExecutableMetadata } from "../scripts/lib/platform-validation.mjs";
+import {
+  extractYamlFrontmatter,
+  validateExecutableMetadata,
+} from "../scripts/lib/platform-validation.mjs";
+
+test("extracts skill frontmatter from LF and CRLF checkouts", () => {
+  const expected = "name: personal-os\ndescription: Test";
+  assert.equal(
+    extractYamlFrontmatter(`---\n${expected}\n---\n\n# Skill\n`),
+    expected,
+  );
+  assert.equal(
+    extractYamlFrontmatter("---\r\nname: personal-os\r\ndescription: Test\r\n---\r\n\r\n# Skill\r\n"),
+    "name: personal-os\r\ndescription: Test",
+  );
+});
 
 test("Windows validates script identity without requiring POSIX execute bits", () => {
   const errors = validateExecutableMetadata({

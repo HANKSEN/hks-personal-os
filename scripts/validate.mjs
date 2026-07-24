@@ -4,7 +4,10 @@ import { readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { validateExecutableMetadata } from "./lib/platform-validation.mjs";
+import {
+  extractYamlFrontmatter,
+  validateExecutableMetadata,
+} from "./lib/platform-validation.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const required = [
@@ -112,7 +115,7 @@ for (const relative of required) {
 const skill = await readFile(path.join(root, "SKILL.md"), "utf8");
 if (skill.includes("TODO")) errors.push("SKILL.md contains TODO placeholders.");
 if (skill.split(/\r?\n/u).length > 500) errors.push("SKILL.md exceeds 500 lines.");
-const frontmatter = skill.match(/^---\n([\s\S]*?)\n---/u)?.[1] ?? "";
+const frontmatter = extractYamlFrontmatter(skill);
 const keys = [...frontmatter.matchAll(/^([a-zA-Z0-9_-]+):/gmu)].map((match) => match[1]);
 if (keys.join(",") !== "name,description") errors.push(`SKILL.md frontmatter must contain only name and description; found ${keys.join(", ")}.`);
 if (!/^name: personal-os$/mu.test(frontmatter)) errors.push("SKILL.md name must be personal-os.");

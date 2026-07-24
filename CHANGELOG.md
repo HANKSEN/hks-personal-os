@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.2 (2026-07-24)
+
+- Make package metadata validation tolerant of Windows CRLF checkouts instead of treating valid Skill frontmatter as empty.
+- Add a CRLF regression test for Skill frontmatter parsing.
+- Add repository line-ending policy so source and documentation remain LF-normalized across Git clients while binary assets remain untouched.
+
 ## 1.3.1 (2026-07-24)
 
 - Make executable-script validation platform-aware: Windows verifies shebangs and package entry points without requiring POSIX mode bits, while macOS and Linux keep execute-permission checks.

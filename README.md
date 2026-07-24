@@ -2,7 +2,7 @@
 
 **简体中文** · [繁體中文](README.zh-TW.md) · [English](README.en.md)
 
-[![version](https://img.shields.io/badge/version-1.3.1-1f6feb?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/releases)
+[![version](https://img.shields.io/badge/version-1.3.2-1f6feb?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/releases)
 [![Skill](https://img.shields.io/badge/Skill-Personal_OS-6f42c1?style=flat-square)](SKILL.md)
 [![tests](https://img.shields.io/badge/tests-108_passing-2da44e?style=flat-square)](https://github.com/HANKSEN/hks-personal-os/tree/main/tests)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A520-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
@@ -175,7 +175,7 @@ V1.2.7 明确停止在 Codex 原生 MCP 表单中承载结构化审批正文：C
 
 ## 当前状态
 
-- 当前稳定版为 v1.3.1；软件采用 AGPL-3.0-or-later，原创说明文档采用 CC BY-SA 4.0，并提供商业许可路径；
+- 当前稳定版为 v1.3.2；软件采用 AGPL-3.0-or-later，原创说明文档采用 CC BY-SA 4.0，并提供商业许可路径；
 - 已发布的 `v1.0.0` 仍按不可撤销的 MIT License 使用；
 - 自动化测试覆盖 Skill-first 安装、完整性校验、原子更新与回退、初始化、只读诊断、复制迁移、多宿主隔离、旧工作区升级、Apply / Undo 和故障恢复；
 - 通过 10,000 文件规模的索引与上下文边界测试；
